@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SCL xmlns="http://www.iec.ch/61850/2003/SCL">
+  <Header id="newfert-ieddesigner" nameStructure="IEDName">
+  </Header>
+  <IED name="ONLINEIED">
+    <AccessPoint name="accessPoint1">
+      <Server>
+        <LDevice inst="simpleIOGenericIO">
+          <LN0 lnClass="LLN0" inst="" lnType="LLN0_1">
+          </LN0>
+          <LN lnClass="GGIO" inst="1" prefix="" lnType="GGIO_1">
+          </LN>
+          <LN lnClass="LLN" inst="0" prefix="" lnType="LLN_1">
+          </LN>
+          <LN lnClass="LPHD" inst="1" prefix="" lnType="LPHD_1">
+          </LN>
+        </LDevice>
+      </Server>
+    </AccessPoint>
+  </IED>
+  <DataTypeTemplates>
+    <LNodeType id="GGIO_1" lnClass="GGIO">
+      <DO name="Mod" type="DOT_GGIO1_Mod" />
+      <DO name="SPCSO1" type="DOT_GGIO1_SPCSO1" />
+      <DO name="SPCSO2" type="DOT_GGIO1_SPCSO2" />
+      <DO name="SPCSO3" type="DOT_GGIO1_SPCSO3" />
+      <DO name="SPCSO4" type="DOT_GGIO1_SPCSO4" />
+      <DO name="NamPlt" type="DOT_GGIO1_NamPlt" />
+      <DO name="AnIn1" type="DOT_GGIO1_AnIn1" />
+      <DO name="AnIn2" type="DOT_GGIO1_AnIn2" />
+      <DO name="AnIn3" type="DOT_GGIO1_AnIn3" />
+      <DO name="AnIn4" type="DOT_GGIO1_AnIn4" />
+      <DO name="Beh" type="DOT_GGIO1_Beh" />
+      <DO name="Health" type="DOT_GGIO1_Health" />
+      <DO name="Ind1" type="DOT_GGIO1_Ind1" />
+      <DO name="Ind2" type="DOT_GGIO1_Ind2" />
+      <DO name="Ind3" type="DOT_GGIO1_Ind3" />
+      <DO name="Ind4" type="DOT_GGIO1_Ind4" />
+    </LNodeType>
+    <LNodeType id="LLN_1" lnClass="LLN">
+      <DO name="Mod" type="DOT_LLN0_Mod" />
+      <DO name="NamPlt" type="DOT_LLN0_NamPlt" />
+      <DO name="Beh" type="DOT_LLN0_Beh" />
+      <DO name="Health" type="DOT_LLN0_Health" />
+    </LNodeType>
+    <LNodeType id="LLN0_1" lnClass="LLN0">
+      <DO name="Mod" type="ENC_ModKind_1" />
+      <DO name="Beh" type="ENS_Beh_1" />
+      <DO name="Health" type="ENS_HealthKind_1" />
+      <DO name="NamPlt" type="LPL_1" />
+    </LNodeType>
+    <LNodeType id="LPHD_1" lnClass="LPHD">
+      <DO name="PhyNam" type="DOT_LPHD1_PhyNam" />
+      <DO name="PhyHealth" type="DOT_LPHD1_PhyHealth" />
+      <DO name="Proxy" type="DOT_LPHD1_Proxy" />
+    </LNodeType>
+    <DOType id="DOT_GGIO1_AnIn1" cdc="MV">
+      <DA name="mag" bType="Struct" type="DOT_GGIO1_AnIn1_mag" fc="MX" />
+      <DA name="q" bType="Quality" fc="MX" />
+      <DA name="t" bType="Timestamp" fc="MX" />
+    </DOType>
+    <DOType id="DOT_GGIO1_AnIn2" cdc="MV">
+      <DA name="mag" bType="Struct" type="DOT_GGIO1_AnIn2_mag" fc="MX" />
+      <DA name="q" bType="Quality" fc="MX" />
+      <DA name="t" bType="Timestamp" fc="MX" />
+    </DOType>
+    <DOType id="DOT_GGIO1_AnIn3" cdc="MV">
+      <DA name="mag" bType="Struct" type="DOT_GGIO1_AnIn3_mag" fc="MX" />
+      <DA name="q" bType="Quality" fc="MX" />
+      <DA name="t" bType="Timestamp" fc="MX" />
+    </DOType>
+    <DOType id="DOT_GGIO1_AnIn4" cdc="MV">
+      <DA name="mag" bType="Struct" type="DOT_GGIO1_AnIn4_mag" fc="MX" />
+      <DA name="q" bType="Quality" fc="MX" />
+      <DA name="t" bType="Timestamp" fc="MX" />
+    </DOType>
+    <DOType id="DOT_GGIO1_Beh" cdc="INS">
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="INT32" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_GGIO1_Health" cdc="INS">
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="INT32" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_GGIO1_Ind1" cdc="SPS">
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="BOOLEAN" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_GGIO1_Ind2" cdc="SPS">
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="BOOLEAN" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_GGIO1_Ind3" cdc="SPS">
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="BOOLEAN" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_GGIO1_Ind4" cdc="SPS">
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="BOOLEAN" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_GGIO1_Mod" cdc="INS">
+      <DA name="ctlModel" bType="INT32" fc="CF" />
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="INT32" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_GGIO1_NamPlt" cdc="">
+      <DA name="d" bType="INT32" fc="DC" />
+      <DA name="swRev" bType="INT32" fc="DC" />
+      <DA name="vendor" bType="INT32" fc="DC" />
+    </DOType>
+    <DOType id="DOT_GGIO1_SPCSO1" cdc="SPC">
+      <DA name="ctlModel" bType="INT32" fc="CF" />
+      <DA name="Oper" bType="Struct" type="DOT_GGIO1_SPCSO1_Oper" fc="CO" />
+      <DA name="ctlNum" bType="INT32U" fc="ST" />
+      <DA name="origin" bType="Struct" type="DOT_GGIO1_SPCSO1_origin" fc="ST" />
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="BOOLEAN" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_GGIO1_SPCSO2" cdc="SPC">
+      <DA name="ctlModel" bType="INT32" fc="CF" />
+      <DA name="Oper" bType="Struct" type="DOT_GGIO1_SPCSO2_Oper" fc="CO" />
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="BOOLEAN" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_GGIO1_SPCSO3" cdc="SPC">
+      <DA name="ctlModel" bType="INT32" fc="CF" />
+      <DA name="Oper" bType="Struct" type="DOT_GGIO1_SPCSO3_Oper" fc="CO" />
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="BOOLEAN" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_GGIO1_SPCSO4" cdc="SPC">
+      <DA name="ctlModel" bType="INT32" fc="CF" />
+      <DA name="Oper" bType="Struct" type="DOT_GGIO1_SPCSO4_Oper" fc="CO" />
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="BOOLEAN" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_LLN0_Beh" cdc="INS">
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="INT32" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_LLN0_Health" cdc="INS">
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="INT32" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_LLN0_Mod" cdc="INS">
+      <DA name="ctlModel" bType="INT32" fc="CF" />
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="INT32" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_LLN0_NamPlt" cdc="">
+      <DA name="configRev" bType="INT32" fc="DC" />
+      <DA name="d" bType="INT32" fc="DC" />
+      <DA name="swRev" bType="INT32" fc="DC" />
+      <DA name="vendor" bType="INT32" fc="DC" />
+      <DA name="ldNs" bType="INT32" fc="EX" />
+    </DOType>
+    <DOType id="DOT_LPHD1_PhyHealth" cdc="INS">
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="INT32" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="DOT_LPHD1_PhyNam" cdc="">
+      <DA name="vendor" bType="INT32" fc="DC" />
+    </DOType>
+    <DOType id="DOT_LPHD1_Proxy" cdc="SPS">
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="stVal" bType="BOOLEAN" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="ENC_ModKind_1" cdc="ENC">
+      <DA name="stVal" bType="Enum" type="ModKind" fc="ST" />
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+      <DA name="ctlModel" bType="Enum" type="CtlModels" fc="CF" />
+      <DA name="d" bType="VisString255" fc="DC" />
+    </DOType>
+    <DOType id="ENS_Beh_1" cdc="ENS">
+      <DA name="stVal" bType="Enum" type="Beh" fc="ST" />
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+      <DA name="d" bType="VisString255" fc="DC" />
+    </DOType>
+    <DOType id="ENS_HealthKind_1" cdc="ENS">
+      <DA name="stVal" bType="Enum" type="HealthKind" fc="ST" />
+      <DA name="q" bType="Quality" fc="ST" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+      <DA name="d" bType="VisString255" fc="DC" />
+    </DOType>
+    <DOType id="LPL_1" cdc="LPL">
+      <DA name="vendor" bType="VisString255" fc="DC" />
+      <DA name="swRev" bType="VisString255" fc="DC" />
+      <DA name="d" bType="VisString255" fc="DC" />
+      <DA name="configRev" bType="VisString255" fc="DC" />
+      <DA name="ldNs" bType="VisString255" fc="EX" />
+    </DOType>
+    <DAType id="AnalogueValue_1">
+      <BDA name="f" bType="FLOAT32" />
+    </DAType>
+    <DAType id="SPCOperate_1">
+      <BDA name="ctlVal" bType="BOOLEAN" />
+      <BDA name="T" bType="Timestamp" />
+      <BDA name="Test" bType="BOOLEAN" />
+    </DAType>
+    <DAType id="DPCOperate_1">
+      <BDA name="ctlVal" bType="Enum" type="Dbpos" />
+      <BDA name="T" bType="Timestamp" />
+      <BDA name="Test" bType="BOOLEAN" />
+    </DAType>
+    <EnumType id="Beh">
+      <EnumVal ord="1">on</EnumVal>
+      <EnumVal ord="2">blocked</EnumVal>
+      <EnumVal ord="3">test</EnumVal>
+      <EnumVal ord="4">test/blocked</EnumVal>
+      <EnumVal ord="5">off</EnumVal>
+    </EnumType>
+    <EnumType id="HealthKind">
+      <EnumVal ord="1">ok</EnumVal>
+      <EnumVal ord="2">warning</EnumVal>
+      <EnumVal ord="3">alarm</EnumVal>
+    </EnumType>
+    <EnumType id="ModKind">
+      <EnumVal ord="1">on</EnumVal>
+      <EnumVal ord="2">blocked</EnumVal>
+      <EnumVal ord="3">test</EnumVal>
+      <EnumVal ord="5">off</EnumVal>
+    </EnumType>
+    <EnumType id="Dbpos">
+      <EnumVal ord="0">intermediate-state</EnumVal>
+      <EnumVal ord="1">off</EnumVal>
+      <EnumVal ord="2">on</EnumVal>
+      <EnumVal ord="3">bad-state</EnumVal>
+    </EnumType>
+    <EnumType id="CtlModels">
+      <EnumVal ord="0">status-only</EnumVal>
+      <EnumVal ord="1">direct-with-normal-security</EnumVal>
+      <EnumVal ord="2">sbo-with-normal-security</EnumVal>
+      <EnumVal ord="3">direct-with-enhanced-security</EnumVal>
+      <EnumVal ord="4">sbo-with-enhanced-security</EnumVal>
+    </EnumType>
+    <DAType id="DOT_GGIO1_SPCSO1_Oper">
+      <BDA name="Check" bType="BOOLEAN" />
+      <BDA name="ctlNum" bType="INT32U" />
+      <BDA name="ctlVal" bType="BOOLEAN" />
+      <BDA name="origin" bType="Struct" />
+      <BDA name="T" bType="Timestamp" />
+      <BDA name="Test" bType="BOOLEAN" />
+    </DAType>
+    <DAType id="DOT_GGIO1_SPCSO1_origin">
+      <BDA name="orCat" bType="INT32" />
+      <BDA name="orIdent" bType="INT32" />
+    </DAType>
+    <DAType id="DOT_GGIO1_SPCSO2_Oper">
+      <BDA name="Check" bType="BOOLEAN" />
+      <BDA name="ctlNum" bType="INT32U" />
+      <BDA name="ctlVal" bType="BOOLEAN" />
+      <BDA name="origin" bType="Struct" />
+      <BDA name="T" bType="Timestamp" />
+      <BDA name="Test" bType="BOOLEAN" />
+    </DAType>
+    <DAType id="DOT_GGIO1_SPCSO3_Oper">
+      <BDA name="Check" bType="BOOLEAN" />
+      <BDA name="ctlNum" bType="INT32U" />
+      <BDA name="ctlVal" bType="BOOLEAN" />
+      <BDA name="origin" bType="Struct" />
+      <BDA name="T" bType="Timestamp" />
+      <BDA name="Test" bType="BOOLEAN" />
+    </DAType>
+    <DAType id="DOT_GGIO1_SPCSO4_Oper">
+      <BDA name="Check" bType="BOOLEAN" />
+      <BDA name="ctlNum" bType="INT32U" />
+      <BDA name="ctlVal" bType="BOOLEAN" />
+      <BDA name="origin" bType="Struct" />
+      <BDA name="T" bType="Timestamp" />
+      <BDA name="Test" bType="BOOLEAN" />
+    </DAType>
+    <DAType id="DOT_GGIO1_AnIn1_mag">
+      <BDA name="f" bType="FLOAT32" />
+    </DAType>
+    <DAType id="DOT_GGIO1_AnIn2_mag">
+      <BDA name="f" bType="FLOAT32" />
+    </DAType>
+    <DAType id="DOT_GGIO1_AnIn3_mag">
+      <BDA name="f" bType="FLOAT32" />
+    </DAType>
+    <DAType id="DOT_GGIO1_AnIn4_mag">
+      <BDA name="f" bType="FLOAT32" />
+    </DAType>
+  </DataTypeTemplates>
+</SCL>
