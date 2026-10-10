@@ -15,8 +15,22 @@
 #include "csvwriter.h"
 #include "modelvalidate.h"
 
+// ÖÐÎÄ gbk ±àÂë
+static void SetupCodecs()
+{
+	QApplication::addLibraryPath(QCoreApplication::applicationDirPath() + "/plugins");
+	QTextCodec* gbk = QTextCodec::codecForName("GBK");
+	if (gbk == 0)
+		gbk = QTextCodec::codecForName("System");
+	QTextCodec::setCodecForLocale(gbk);
+	QTextCodec::setCodecForTr(gbk);
+	QTextCodec::setCodecForCStrings(gbk);
+}
+
 static int RunSelfTest(const char* icdPath, const char* csvPath)
 {
+	printf("SELFTEST codec=%s\n",
+		QTextCodec::codecForTr() ? QTextCodec::codecForTr()->name().constData() : "none");
 	SclModel model = MakeDemoModel();
 	std::string err;
 	std::string text = SclWriter::BuildSclText(model, false);
@@ -162,10 +176,8 @@ static int RunOnline(const char* ip, int port, const char* ied)
 
 int main(int argc, char** argv)
 {
-	QTextCodec* gbk = QTextCodec::codecForName("GBK");
-	QTextCodec::setCodecForLocale(gbk);
-	QTextCodec::setCodecForTr(gbk);
-	QTextCodec::setCodecForCStrings(gbk);
+	QApplication app(argc, argv);
+	SetupCodecs();
 
 	if (argc >= 4 && strcmp(argv[1], "--selftest") == 0)
 		return RunSelfTest(argv[2], argv[3]);
@@ -176,9 +188,9 @@ int main(int argc, char** argv)
 	if (argc >= 4 && strcmp(argv[1], "--online") == 0)
 		return RunOnline(argv[2], atoi(argv[3]), argc >= 5 ? argv[4] : "");
 
-	QApplication app(argc, argv);
 	FreeConsole();
 	MainWindow w;
 	w.show();
+	w.applyInitialColumnRatio();
 	return app.exec();
 }

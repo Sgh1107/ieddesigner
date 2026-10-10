@@ -8,6 +8,7 @@
 #include "modelvalidate.h"
 
 #include <QTreeWidget>
+#include <QHeaderView>
 #include <QTableWidget>
 #include <QPlainTextEdit>
 #include <QDockWidget>
@@ -683,4 +684,10 @@ void MainWindow::onOnlineFinished()
 	log(tr("在线读取完成：IED=%1 LD=%2 LN=%3 DO=%4").arg(QString::fromLocal8Bit(m_model.ied.name.c_str()))
 		.arg((int)m_model.ied.lds.size()).arg(lnCount).arg(doCount));
 	t->deleteLater();
+}
+
+void MainWindow::applyInitialColumnRatio()
+{
+	m_tree->header()->setStretchLastSection(true);
+	m_tree->setColumnWidth(0, m_tree->viewport()->width() * 4 / 10);
 }
