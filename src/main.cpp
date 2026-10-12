@@ -163,6 +163,93 @@ static int RunOnline(const char* ip, int port, const char* ied)
 static int RunSkeleton(const char* outPath)
 {
 	SclModel model = MakeNewModel();
+
+	// 设置 DAI 值（覆盖点分路径 Struct 展开），验证 DAI 读写链路
+	SclLDevice& ld = model.ied.lds[0];
+	for (size_t i = 0; i < ld.ln0.dos.size(); ++i)
+	{
+		if (ld.ln0.dos[i].name == "NamPlt")
+			ld.ln0.dos[i].SetDaiVal("vendor", "newfert-tech");
+	}
+	for (size_t i = 0; i < ld.lns.size(); ++i)
+	{
+		for (size_t d = 0; d < ld.lns[i].dos.size(); ++d)
+		{
+			if (ld.lns[i].dos[d].name == "PhyNam")
+				ld.lns[i].dos[d].SetDaiVal("vendor", "newfert");
+		}
+	}
+
+	// 数据集 + 控制块 + GSE 通信地址（验证完整链路与加载器兼容性）
+	SclDataSet ds;
+	ds.name = "dsRelay";
+	SclFcda f;
+	f.iedName = "TEMPLATE";
+	f.ldInst = "LD1";
+	f.lnClass = "LPHD";
+	f.lnInst = "1";
+	f.doName = "Proxy";
+	f.fc = "ST";
+	ds.fcdas.push_back(f);
+	ld.ln0.dataSets.push_back(ds);
+
+	SclReportControl rc;
+	rc.name = "brcb1";
+	rc.rptId = "TEMPLATE_LD1_brcb1";
+	rc.dataSet = "dsRelay";
+	rc.buffered = true;
+	rc.confRev = "1";
+	rc.intgPd = "60000";
+	rc.trgOps.present = true;
+	rc.trgOps.dchg = true;
+	rc.trgOps.qchg = true;
+	rc.optFields.present = true;
+	rc.optFields.seqNum = true;
+	rc.optFields.timeStamp = true;
+	rc.optFields.entryID = true;
+	ld.ln0.reports.push_back(rc);
+
+	SclGseControl gc;
+	gc.name = "gcb1";
+	gc.appId = "TEMPLATE_LD1_gcb1";
+	gc.dataSet = "dsRelay";
+	gc.confRev = "1";
+	ld.ln0.gses.push_back(gc);
+
+	SclSampledValueControl sc;
+	sc.name = "msvcb1";
+	sc.smvId = "TEMPLATE_LD1_msvcb1";
+	sc.dataSet = "dsRelay";
+	sc.confRev = "1";
+	ld.ln0.smvs.push_back(sc);
+
+	SclLogControl lc;
+	lc.name = "lc1";
+	lc.dataSet = "dsRelay";
+	lc.logName = "Log";
+	lc.trgOps.present = true;
+	ld.ln0.logs.push_back(lc);
+
+	SclSettingControl scb;
+	scb.name = "scb1";
+	scb.dataSet = "dsRelay";
+	scb.numOfSG = "2";
+	ld.ln0.settings.push_back(scb);
+
+	if (!model.subnets.empty())
+	{
+		SclCommAddress ga;
+		ga.ldInst = "LD1";
+		ga.cbName = "gcb1";
+		ga.pParams.push_back(std::make_pair("MAC-Address", "01-0C-CD-01-00-01"));
+		ga.pParams.push_back(std::make_pair("APPID", "0x0001"));
+		ga.pParams.push_back(std::make_pair("VLAN-ID", "0x001"));
+		ga.pParams.push_back(std::make_pair("VLAN-PRIORITY", "4"));
+		ga.minTime = "10";
+		ga.maxTime = "1000";
+		model.subnets[0].aps[0].gses.push_back(ga);
+	}
+
 	std::string err;
 	std::string text = SclWriter::BuildSclText(model, true);
 	if (!SclWriter::WriteFile(text, outPath, err))
@@ -174,7 +261,7 @@ static int RunSkeleton(const char* outPath)
 	PrintModelStats("SKELETON", model, v);
 	printf("SKELETON loaderOk=%d err=%s\n", v.loaderOk ? 1 : 0, v.errorText.c_str());
 
-	// 读写回环：再次解析生成的文件，确认新增字段完整保留
+	// 读写回环：再次解析生成的文件，确认新增字段与 DAI 值完整保留
 	SclModel reloaded;
 	if (!SclReader::ReadSclFile(outPath, model.ied.name, reloaded, err))
 	{
@@ -189,6 +276,62 @@ static int RunSkeleton(const char* outPath)
 	if (reloaded.ied.serverTimeout != model.ied.serverTimeout) diff++;
 	if (reloaded.ied.authentication != model.ied.authentication) diff++;
 	if (!reloaded.ied.lds.empty() && reloaded.ied.lds[0].comment != model.ied.lds[0].comment) diff++;
+
+	// DAI 回读比对
+	for (size_t i = 0; i < model.ied.lds.size(); ++i)
+	{
+		const SclLDevice& src = model.ied.lds[i];
+		if (i >= reloaded.ied.lds.size()) { diff++; break; }
+		const SclLDevice& dst = reloaded.ied.lds[i];
+		for (size_t d = 0; d < src.ln0.dos.size(); ++d)
+		{
+			const SclDo& s = src.ln0.dos[d];
+			const SclDo* t = 0;
+			for (size_t k = 0; k < dst.ln0.dos.size(); ++k)
+				if (dst.ln0.dos[k].name == s.name) t = &dst.ln0.dos[k];
+			if (!t) { diff++; continue; }
+			for (size_t k = 0; k < s.dais.size(); ++k)
+			{
+				const std::string* tv = t->FindDaiVal(s.dais[k].name);
+				if (!tv || *tv != s.dais[k].val)
+				{
+					printf("SKELETON DAI diff: %s.%s\n", s.name.c_str(), s.dais[k].name.c_str());
+					diff++;
+				}
+			}
+		}
+		// 数据集/控制块回读比对
+		const SclLn& s0 = src.ln0;
+		const SclLn& d0 = dst.ln0;
+		if (d0.dataSets.size() != s0.dataSets.size()) { printf("SKELETON diff: dataSet count\n"); diff++; }
+		else if (!s0.dataSets.empty() && (d0.dataSets[0].fcdas.size() != s0.dataSets[0].fcdas.size() ||
+			d0.dataSets[0].fcdas[0].RefText() != s0.dataSets[0].fcdas[0].RefText()))
+		{ printf("SKELETON diff: FCDA\n"); diff++; }
+		if (d0.reports.size() != s0.reports.size() ||
+			(!s0.reports.empty() && (d0.reports[0].name != s0.reports[0].name ||
+				d0.reports[0].confRev != s0.reports[0].confRev || d0.reports[0].trgOps.present != s0.reports[0].trgOps.present ||
+				d0.reports[0].optFields.present != s0.reports[0].optFields.present)))
+		{ printf("SKELETON diff: report\n"); diff++; }
+		if (d0.gses.size() != s0.gses.size() ||
+			(!s0.gses.empty() && (d0.gses[0].appId != s0.gses[0].appId || d0.gses[0].dataSet != s0.gses[0].dataSet)))
+		{ printf("SKELETON diff: gseControl\n"); diff++; }
+		if (d0.smvs.size() != s0.smvs.size() ||
+			(!s0.smvs.empty() && (d0.smvs[0].smvId != s0.smvs[0].smvId || d0.smvs[0].smpRate != s0.smvs[0].smpRate ||
+				d0.smvs[0].smpMod != s0.smvs[0].smpMod)))
+		{ printf("SKELETON diff: smvControl\n"); diff++; }
+		if (d0.logs.size() != s0.logs.size() ||
+			(!s0.logs.empty() && (d0.logs[0].logName != s0.logs[0].logName || d0.logs[0].trgOps.present != s0.logs[0].trgOps.present)))
+		{ printf("SKELETON diff: logControl\n"); diff++; }
+		if (d0.settings.size() != s0.settings.size() ||
+			(!s0.settings.empty() && (d0.settings[0].numOfSG != s0.settings[0].numOfSG)))
+		{ printf("SKELETON diff: settingControl\n"); diff++; }
+	}
+	// 通信段 GSE 地址回读比对
+	if (reloaded.subnets.size() != model.subnets.size() ||
+		reloaded.subnets[0].aps[0].gses.size() != model.subnets[0].aps[0].gses.size() ||
+		reloaded.subnets[0].aps[0].gses[0].minTime != model.subnets[0].aps[0].gses[0].minTime ||
+		reloaded.subnets[0].aps[0].pParams.size() != model.subnets[0].aps[0].pParams.size())
+	{ printf("SKELETON diff: subnets/gse address\n"); diff++; }
 	printf("SKELETON reread diff=%d services=%d pParams=%d\n", diff,
 		(int)reloaded.ied.services.size(), (int)reloaded.ied.pParams.size());
 	return (v.refsParsed && diff == 0) ? 0 : 1;

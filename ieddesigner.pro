@@ -3,7 +3,12 @@ LANGUAGE	= C++
 
 TARGET = ieddesigner
 
-QT	+= core gui widgets xml concurrent
+QT	+= core gui widgets xml concurrent svg
+
+RESOURCES += src/resources/icons.qrc
+
+# 应用图标：嵌入 exe 资源（资源管理器/任务栏显示）
+RC_ICONS = src/resources/app.ico
 
 CONFIG	+= c++17 warn_off console
 

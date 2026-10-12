@@ -244,6 +244,141 @@ namespace SclTemplates
 		return result;
 	}
 
+	std::vector<SclDa> BdasForDaType(const std::string& id)
+	{
+		std::vector<SclDa> result;
+		if (id == "AnalogueValue_1")
+		{
+			SclDa bda; bda.name = "f"; bda.bType = "FLOAT32"; bda.fc = ""; result.push_back(bda);
+		}
+		else if (id == "SPCOperate_1")
+		{
+			SclDa a; a.name = "ctlVal"; a.bType = "BOOLEAN"; a.fc = ""; result.push_back(a);
+			SclDa b; b.name = "T"; b.bType = "Timestamp"; b.fc = ""; result.push_back(b);
+			SclDa c; c.name = "Test"; c.bType = "BOOLEAN"; c.fc = ""; result.push_back(c);
+		}
+		else if (id == "DPCOperate_1")
+		{
+			SclDa a; a.name = "ctlVal"; a.bType = "Enum"; a.fc = ""; a.structType = "Dbpos"; result.push_back(a);
+			SclDa b; b.name = "T"; b.bType = "Timestamp"; b.fc = ""; result.push_back(b);
+			SclDa c; c.name = "Test"; c.bType = "BOOLEAN"; c.fc = ""; result.push_back(c);
+		}
+		return result;
+	}
+
+	std::vector<std::pair<int, std::string> > EnumValsFor(const std::string& id)
+	{
+		std::vector<std::pair<int, std::string> > result;
+		if (id == "Beh")
+		{
+			result.push_back(std::make_pair(1, "on"));
+			result.push_back(std::make_pair(2, "blocked"));
+			result.push_back(std::make_pair(3, "test"));
+			result.push_back(std::make_pair(4, "test/blocked"));
+			result.push_back(std::make_pair(5, "off"));
+		}
+		else if (id == "ModKind")
+		{
+			result.push_back(std::make_pair(1, "on"));
+			result.push_back(std::make_pair(2, "blocked"));
+			result.push_back(std::make_pair(3, "test"));
+			result.push_back(std::make_pair(5, "off"));
+		}
+		else if (id == "HealthKind")
+		{
+			result.push_back(std::make_pair(1, "ok"));
+			result.push_back(std::make_pair(2, "warning"));
+			result.push_back(std::make_pair(3, "alarm"));
+		}
+		else if (id == "Dbpos")
+		{
+			result.push_back(std::make_pair(0, "intermediate-state"));
+			result.push_back(std::make_pair(1, "off"));
+			result.push_back(std::make_pair(2, "on"));
+			result.push_back(std::make_pair(3, "bad-state"));
+		}
+		else if (id == "CtlModels")
+		{
+			result.push_back(std::make_pair(0, "status-only"));
+			result.push_back(std::make_pair(1, "direct-with-normal-security"));
+			result.push_back(std::make_pair(2, "sbo-with-normal-security"));
+			result.push_back(std::make_pair(3, "direct-with-enhanced-security"));
+			result.push_back(std::make_pair(4, "sbo-with-enhanced-security"));
+		}
+		return result;
+	}
+
+	static void ExpandDas(const std::vector<SclDa>& das, std::vector<SclDaiSpec>& out)
+	{
+		for (size_t i = 0; i < das.size(); ++i)
+		{
+			const SclDa& da = das[i];
+			if (da.bType == "Struct")
+			{
+				std::vector<SclDa> bdas = BdasForDaType(da.structType);
+				for (size_t b = 0; b < bdas.size(); ++b)
+				{
+					SclDaiSpec spec;
+					spec.path = da.name + "." + bdas[b].name;
+					spec.bType = bdas[b].bType;
+					spec.fc = da.fc;
+					spec.enumId = bdas[b].structType;
+					out.push_back(spec);
+				}
+				if (bdas.empty())
+				{
+					// 未知 DAType：保留 Struct 本身，值不可编辑
+					SclDaiSpec spec;
+					spec.path = da.name;
+					spec.bType = da.bType;
+					spec.fc = da.fc;
+					spec.enumId = da.structType;
+					out.push_back(spec);
+				}
+			}
+			else
+			{
+				SclDaiSpec spec;
+				spec.path = da.name;
+				spec.bType = da.bType;
+				spec.fc = da.fc;
+				spec.enumId = da.structType;
+				out.push_back(spec);
+			}
+		}
+	}
+
+	std::vector<SclDaiSpec> DaiSpecsForDo(const std::string& cdc, const std::string& stValEnum,
+		const std::vector<SclDa>& customDas, bool hasCustomDas)
+	{
+		std::vector<SclDa> das = hasCustomDas ? customDas : DasForCdc(cdc, stValEnum);
+		std::vector<SclDaiSpec> out;
+		ExpandDas(das, out);
+		return out;
+	}
+
+	std::vector<SclCdcTemplate> BuiltinCdcTemplates()
+	{
+		std::vector<SclCdcTemplate> list;
+		for (size_t i = 0; i < sizeof(kCdcTable) / sizeof(kCdcTable[0]); ++i)
+		{
+			SclCdcTemplate t;
+			t.cdc = kCdcTable[i].cdc;
+			t.isCustom = false;
+			for (int j = 0; j < kCdcTable[i].count; ++j)
+			{
+				SclDa da;
+				da.name = kCdcTable[i].das[j].name;
+				da.bType = kCdcTable[i].das[j].bType;
+				da.fc = kCdcTable[i].das[j].fc;
+				da.structType = kCdcTable[i].das[j].structType ? kCdcTable[i].das[j].structType : "";
+				t.das.push_back(da);
+			}
+			list.push_back(t);
+		}
+		return list;
+	}
+
 	SclLn MakeLn(const std::string& lnClass)
 	{
 		SclLn ln;

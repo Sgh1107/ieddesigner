@@ -245,6 +245,175 @@ namespace SclReader
 		}
 	}
 
+	// 递归收集 DAI/SDI 下的 Val，Struct 展开为点分路径（如 "mag.f"）
+	static void CollectDaiVals(const QDomElement& container, const std::string& prefix,
+		std::vector<SclDai>& out)
+	{
+		std::vector<QDomElement> vals = ChildrenByLocalName(container, "Val");
+		if (!vals.empty())
+		{
+			out.push_back(SclDai(prefix, vals[0].text().toUtf8().constData()));
+			return;
+		}
+		std::vector<QDomElement> sdis = ChildrenByLocalName(container, "SDI");
+		for (size_t i = 0; i < sdis.size(); ++i)
+		{
+			std::string sdiName = sdis[i].attribute("name").toUtf8().constData();
+			std::string path = prefix.empty() ? sdiName : prefix + "." + sdiName;
+			CollectDaiVals(sdis[i], path, out);
+		}
+	}
+
+	static SclTrgOps ParseTrgOps(const QDomElement& parent)
+	{
+		SclTrgOps ops;
+		QDomElement t = ChildByLocalName(parent, "TrgOps");
+		if (!t.isNull())
+		{
+			ops.present = true;
+			ops.dchg = t.attribute("dchg") == QLatin1String("true");
+			ops.qchg = t.attribute("qchg") == QLatin1String("true");
+			ops.dupd = t.attribute("dupd") == QLatin1String("true");
+			ops.period = t.attribute("period") == QLatin1String("true");
+			ops.gi = t.attribute("gi") == QLatin1String("true");
+		}
+		return ops;
+	}
+
+	static SclOptFields ParseOptFields(const QDomElement& parent)
+	{
+		SclOptFields opt;
+		QDomElement t = ChildByLocalName(parent, "OptFields");
+		if (!t.isNull())
+		{
+			opt.present = true;
+			opt.seqNum = t.attribute("seqNum") == QLatin1String("true");
+			opt.timeStamp = t.attribute("timeStamp") == QLatin1String("true");
+			opt.dataSet = t.attribute("dataSet") == QLatin1String("true");
+			opt.reasonCode = t.attribute("reasonCode") == QLatin1String("true");
+			opt.dataRef = t.attribute("dataRef") == QLatin1String("true");
+			opt.bufOvfl = t.attribute("bufOvfl") == QLatin1String("true");
+			opt.entryID = t.attribute("entryID") == QLatin1String("true");
+			opt.config = t.attribute("config") == QLatin1String("true");
+		}
+		return opt;
+	}
+
+	// 解析 LN 下的数据集与各类控制块
+	static void ParseLnControlBlocks(const QDomElement& lnElem, SclLn& ln)
+	{
+		std::vector<QDomElement> dss = ChildrenByLocalName(lnElem, "DataSet");
+		for (size_t i = 0; i < dss.size(); ++i)
+		{
+			SclDataSet ds;
+			ds.name = dss[i].attribute("name").toUtf8().constData();
+			ds.desc = dss[i].attribute("desc").toUtf8().constData();
+			std::vector<QDomElement> fcdas = ChildrenByLocalName(dss[i], "FCDA");
+			for (size_t k = 0; k < fcdas.size(); ++k)
+			{
+				SclFcda f;
+				f.iedName = fcdas[k].attribute("iedName").toUtf8().constData();
+				f.ldInst = fcdas[k].attribute("ldInst").toUtf8().constData();
+				f.prefix = fcdas[k].attribute("prefix").toUtf8().constData();
+				f.lnClass = fcdas[k].attribute("lnClass").toUtf8().constData();
+				f.lnInst = fcdas[k].attribute("lnInst").toUtf8().constData();
+				f.doName = fcdas[k].attribute("doName").toUtf8().constData();
+				f.daName = fcdas[k].attribute("daName").toUtf8().constData();
+				f.fc = fcdas[k].attribute("fc").toUtf8().constData();
+				ds.fcdas.push_back(f);
+			}
+			ln.dataSets.push_back(ds);
+		}
+
+		std::vector<QDomElement> rcs = ChildrenByLocalName(lnElem, "ReportControl");
+		for (size_t i = 0; i < rcs.size(); ++i)
+		{
+			SclReportControl rc;
+			rc.name = rcs[i].attribute("name").toUtf8().constData();
+			rc.rptId = rcs[i].attribute("rptID").toUtf8().constData();
+			rc.dataSet = rcs[i].attribute("datSet").toUtf8().constData();
+			rc.buffered = rcs[i].attribute("buffered") == QLatin1String("true");
+			rc.bufTime = rcs[i].attribute("bufTime").toUtf8().constData();
+			rc.intgPd = rcs[i].attribute("intgPd").toUtf8().constData();
+			rc.indexed = rcs[i].attribute("indexed") != QLatin1String("false");
+			rc.maxClients = -1;
+			QDomElement rptEn = ChildByLocalName(rcs[i], "RptEnabled");
+			if (!rptEn.isNull())
+			{
+				std::string maxAttr = rptEn.attribute("max").toUtf8().constData();
+				if (!maxAttr.empty())
+					rc.maxClients = atoi(maxAttr.c_str());
+			}
+			QDomElement confRev = ChildByLocalName(rcs[i], "ConfRev");
+			if (!confRev.isNull())
+				rc.confRev = confRev.text().toUtf8().constData();
+			else
+				rc.confRev = rcs[i].attribute("confRev").toUtf8().constData();
+			rc.trgOps = ParseTrgOps(rcs[i]);
+			rc.optFields = ParseOptFields(rcs[i]);
+			ln.reports.push_back(rc);
+		}
+
+		std::vector<QDomElement> gcs = ChildrenByLocalName(lnElem, "GSEControl");
+		for (size_t i = 0; i < gcs.size(); ++i)
+		{
+			SclGseControl gc;
+			gc.name = gcs[i].attribute("name").toUtf8().constData();
+			gc.appId = gcs[i].attribute("appID").toUtf8().constData();
+			gc.dataSet = gcs[i].attribute("datSet").toUtf8().constData();
+			gc.fixedOffs = gcs[i].attribute("fixedOffs") == QLatin1String("true");
+			QDomElement confRev = ChildByLocalName(gcs[i], "ConfRev");
+			if (!confRev.isNull())
+				gc.confRev = confRev.text().toUtf8().constData();
+			else
+				gc.confRev = gcs[i].attribute("confRev").toUtf8().constData();
+			ln.gses.push_back(gc);
+		}
+
+		std::vector<QDomElement> scs = ChildrenByLocalName(lnElem, "SampledValueControl");
+		for (size_t i = 0; i < scs.size(); ++i)
+		{
+			SclSampledValueControl sc;
+			sc.name = scs[i].attribute("name").toUtf8().constData();
+			sc.smvId = scs[i].attribute("smvID").toUtf8().constData();
+			sc.dataSet = scs[i].attribute("datSet").toUtf8().constData();
+			sc.smpRate = scs[i].attribute("smpRate").toUtf8().constData();
+			sc.nofASDU = scs[i].attribute("nofASDU").toUtf8().constData();
+			sc.smpMod = scs[i].attribute("smpMod").toUtf8().constData();
+			QDomElement confRev = ChildByLocalName(scs[i], "ConfRev");
+			if (!confRev.isNull())
+				sc.confRev = confRev.text().toUtf8().constData();
+			else
+				sc.confRev = scs[i].attribute("confRev").toUtf8().constData();
+			if (sc.smpRate.empty()) sc.smpRate = "80";
+			if (sc.nofASDU.empty()) sc.nofASDU = "1";
+			if (sc.smpMod.empty()) sc.smpMod = "S";
+			ln.smvs.push_back(sc);
+		}
+
+		std::vector<QDomElement> lcs = ChildrenByLocalName(lnElem, "LogControl");
+		for (size_t i = 0; i < lcs.size(); ++i)
+		{
+			SclLogControl lc;
+			lc.name = lcs[i].attribute("name").toUtf8().constData();
+			lc.dataSet = lcs[i].attribute("datSet").toUtf8().constData();
+			lc.logName = lcs[i].attribute("logName").toUtf8().constData();
+			lc.intgPd = lcs[i].attribute("intgPd").toUtf8().constData();
+			lc.trgOps = ParseTrgOps(lcs[i]);
+			ln.logs.push_back(lc);
+		}
+
+		std::vector<QDomElement> scbs = ChildrenByLocalName(lnElem, "SettingControl");
+		for (size_t i = 0; i < scbs.size(); ++i)
+		{
+			SclSettingControl scb;
+			scb.name = scbs[i].attribute("name").toUtf8().constData();
+			scb.dataSet = scbs[i].attribute("datSet").toUtf8().constData();
+			scb.numOfSG = scbs[i].attribute("numOfSG").toUtf8().constData();
+			ln.settings.push_back(scb);
+		}
+	}
+
 	static SclLn BuildLn(ReadContext& ctx, const QDomElement& lnElem, bool isLn0)
 	{
 		SclLn ln;
@@ -270,6 +439,7 @@ namespace SclReader
 		}
 
 		std::map<std::string, std::string> doiDesc;
+		std::map<std::string, std::vector<SclDai> > doiDais;
 		std::vector<std::string> doiOrder;
 		std::vector<QDomElement> dois = ChildrenByLocalName(lnElem, "DOI");
 		for (size_t i = 0; i < dois.size(); ++i)
@@ -279,11 +449,15 @@ namespace SclReader
 			std::vector<QDomElement> dais = ChildrenByLocalName(dois[i], "DAI");
 			for (size_t d = 0; d < dais.size(); ++d)
 			{
-				if (dais[d].attribute("name") != QLatin1String("d"))
+				std::string daiName = dais[d].attribute("name").toUtf8().constData();
+				if (daiName == "d")
+				{
+					QDomElement val = ChildByLocalName(dais[d], "Val");
+					if (!val.isNull())
+						doiDesc[doName] = val.text().toUtf8().constData();
 					continue;
-			QDomElement val = ChildByLocalName(dais[d], "Val");
-			if (!val.isNull())
-				doiDesc[doName] = val.text().toUtf8().constData();
+				}
+				CollectDaiVals(dais[d], daiName, doiDais[doName]);
 			}
 		}
 
@@ -326,6 +500,9 @@ namespace SclReader
 				std::map<std::string, std::string>::const_iterator itDesc = doiDesc.find(doName);
 				if (itDesc != doiDesc.end())
 					dobj.desc = itDesc->second;
+				std::map<std::string, std::vector<SclDai> >::const_iterator itDais = doiDais.find(doName);
+				if (itDais != doiDais.end())
+					dobj.dais = itDais->second;
 				ln.dos.push_back(dobj);
 				added.insert(doName);
 			}
@@ -337,8 +514,13 @@ namespace SclReader
 				continue;
 			SclDo dobj(doiOrder[i], "", "");
 			dobj.desc = doiDesc[doiOrder[i]];
+			std::map<std::string, std::vector<SclDai> >::const_iterator itDais2 = doiDais.find(doiOrder[i]);
+			if (itDais2 != doiDais.end())
+				dobj.dais = itDais2->second;
 			ln.dos.push_back(dobj);
 		}
+
+		ParseLnControlBlocks(lnElem, ln);
 		return ln;
 	}
 
@@ -394,37 +576,94 @@ namespace SclReader
 			}
 		}
 
-		// Communication 地址参数（有序保存全部 P 项，同时填充惯用字段）
+		// Communication 全量解析（子网/接入点/GSE/SMV 地址）
 		QDomElement comm = ChildByLocalName(root, "Communication");
 		bool apFound = false;
 		if (!comm.isNull())
 		{
 			std::vector<QDomElement> subnets = ChildrenByLocalName(comm, "SubNetwork");
-			for (size_t s = 0; s < subnets.size() && !apFound; ++s)
+			for (size_t s = 0; s < subnets.size(); ++s)
 			{
+				SclSubNetwork sn;
+				sn.name = subnets[s].attribute("name").toUtf8().constData();
+				sn.type = subnets[s].attribute("type").toUtf8().constData();
 				std::vector<QDomElement> caps = ChildrenByLocalName(subnets[s], "ConnectedAP");
-				for (size_t c = 0; c < caps.size() && !apFound; ++c)
+				for (size_t c = 0; c < caps.size(); ++c)
 				{
-					if (caps[c].attribute("iedName").toUtf8().constData() != iedName)
-						continue;
-					model.ied.apName = caps[c].attribute("apName").toUtf8().constData();
-					apFound = true;
+					SclConnectedAP cap;
+					cap.apName = caps[c].attribute("apName").toUtf8().constData();
+					cap.iedName = caps[c].attribute("iedName").toUtf8().constData();
 					QDomElement addr = ChildByLocalName(caps[c], "Address");
-					if (addr.isNull())
-						break;
-					std::vector<QDomElement> ps = ChildrenByLocalName(addr, "P");
-					for (size_t p = 0; p < ps.size(); ++p)
+					if (!addr.isNull())
 					{
-						std::string type = ps[p].attribute("type").toUtf8().constData();
-						std::string value = ps[p].text().toUtf8().constData();
-						model.ied.pParams.push_back(std::make_pair(type, value));
-						if (type == "IP") model.ied.ip = value;
-						else if (type == "IP-SUBNET") model.ied.ipSubnet = value;
-						else if (type == "IP-GATEWAY") model.ied.ipGateway = value;
-						else if (type == "MMS-Port") model.ied.port = atoi(value.c_str());
+						std::vector<QDomElement> ps = ChildrenByLocalName(addr, "P");
+						for (size_t p = 0; p < ps.size(); ++p)
+						{
+							std::string type = ps[p].attribute("type").toUtf8().constData();
+							std::string value = ps[p].text().toUtf8().constData();
+							cap.pParams.push_back(std::make_pair(type, value));
+						}
 					}
-					break;
+					std::vector<QDomElement> gses = ChildrenByLocalName(caps[c], "GSE");
+					for (size_t g = 0; g < gses.size(); ++g)
+					{
+						SclCommAddress ga;
+						ga.ldInst = gses[g].attribute("ldInst").toUtf8().constData();
+						ga.cbName = gses[g].attribute("cbName").toUtf8().constData();
+						QDomElement gaddr = ChildByLocalName(gses[g], "Address");
+						if (!gaddr.isNull())
+						{
+							std::vector<QDomElement> gps = ChildrenByLocalName(gaddr, "P");
+							for (size_t p = 0; p < gps.size(); ++p)
+								ga.pParams.push_back(std::make_pair(
+									gps[p].attribute("type").toUtf8().constData(),
+									gps[p].text().toUtf8().constData()));
+						}
+						QDomElement minT = ChildByLocalName(gses[g], "MinTime");
+						if (!minT.isNull())
+							ga.minTime = minT.text().toUtf8().constData();
+						QDomElement maxT = ChildByLocalName(gses[g], "MaxTime");
+						if (!maxT.isNull())
+							ga.maxTime = maxT.text().toUtf8().constData();
+						cap.gses.push_back(ga);
+					}
+					std::vector<QDomElement> smvs = ChildrenByLocalName(caps[c], "SMV");
+					for (size_t g = 0; g < smvs.size(); ++g)
+					{
+						SclCommAddress sa;
+						sa.ldInst = smvs[g].attribute("ldInst").toUtf8().constData();
+						sa.cbName = smvs[g].attribute("cbName").toUtf8().constData();
+						QDomElement saddr = ChildByLocalName(smvs[g], "Address");
+						if (!saddr.isNull())
+						{
+							std::vector<QDomElement> sps = ChildrenByLocalName(saddr, "P");
+							for (size_t p = 0; p < sps.size(); ++p)
+								sa.pParams.push_back(std::make_pair(
+									sps[p].attribute("type").toUtf8().constData(),
+									sps[p].text().toUtf8().constData()));
+						}
+						cap.smvs.push_back(sa);
+					}
+					sn.aps.push_back(cap);
+
+					// 主接入点匹配（与既有逻辑一致）
+					if (!apFound && cap.iedName == iedName)
+					{
+						model.ied.apName = cap.apName;
+						apFound = true;
+						for (size_t p = 0; p < cap.pParams.size(); ++p)
+						{
+							const std::string& type = cap.pParams[p].first;
+							const std::string& value = cap.pParams[p].second;
+							model.ied.pParams.push_back(std::make_pair(type, value));
+							if (type == "IP") model.ied.ip = value;
+							else if (type == "IP-SUBNET") model.ied.ipSubnet = value;
+							else if (type == "IP-GATEWAY") model.ied.ipGateway = value;
+							else if (type == "MMS-Port") model.ied.port = atoi(value.c_str());
+						}
+					}
 				}
+				model.subnets.push_back(sn);
 			}
 		}
 		if (model.ied.apName.empty())

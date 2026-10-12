@@ -6,6 +6,44 @@ std::string SclLn::Name() const
 	return prefix + lnClass + inst;
 }
 
+std::string SclFcda::RefText() const
+{
+	std::string ln = prefix + lnClass + lnInst;
+	std::string ref = iedName + ldInst + "/" + ln;
+	if (!doName.empty())
+		ref += "." + doName;
+	if (!daName.empty())
+		ref += "." + daName;
+	return ref;
+}
+
+const std::string* SclDo::FindDaiVal(const std::string& daiName) const
+{
+	for (size_t i = 0; i < dais.size(); ++i)
+	{
+		if (dais[i].name == daiName)
+			return &dais[i].val;
+	}
+	return 0;
+}
+
+void SclDo::SetDaiVal(const std::string& daiName, const std::string& val)
+{
+	for (size_t i = 0; i < dais.size(); ++i)
+	{
+		if (dais[i].name == daiName)
+		{
+			if (val.empty())
+				dais.erase(dais.begin() + i);
+			else
+				dais[i].val = val;
+			return;
+		}
+	}
+	if (!val.empty())
+		dais.push_back(SclDai(daiName, val));
+}
+
 SclIed::SclIed()
 {
 	name = "TEMPLATE";
@@ -51,6 +89,17 @@ SclModel MakeNewModel()
 	m.ied.ipSubnet = "255.255.255.0";
 	m.ied.ipGateway = "192.168.1.1";
 	m.ied.port = 102;
+
+	// 通信段（完整模型化，树中可直接编辑）
+	SclConnectedAP cap;
+	cap.apName = "accessPoint1";
+	cap.iedName = "TEMPLATE";
+	cap.pParams = m.ied.pParams;
+	SclSubNetwork subnet;
+	subnet.name = "SubNetworkName";
+	subnet.type = "8-MMS";
+	subnet.aps.push_back(cap);
+	m.subnets.push_back(subnet);
 
 	SclLDevice ld;
 	ld.inst = "LD1";

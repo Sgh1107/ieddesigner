@@ -62,6 +62,45 @@ namespace SclWriter
 		bool custom;
 	};
 
+	// 输出单个 DAI：点分路径重建 SDI 嵌套（如 "mag.f" -> <DAI name="mag"><SDI name="f"><Val>..</Val></SDI></DAI>）
+	static void EmitDai(const SclDai& dai, int indentBase, std::string& text, const std::string& nl)
+	{
+		std::vector<std::string> parts;
+		std::string cur;
+		for (size_t i = 0; i <= dai.name.size(); ++i)
+		{
+			if (i == dai.name.size() || dai.name[i] == '.')
+			{
+				if (!cur.empty())
+					parts.push_back(cur);
+				cur.clear();
+			}
+			else
+			{
+				cur += dai.name[i];
+			}
+		}
+		if (parts.empty())
+			return;
+		std::string pad(indentBase, ' ');
+		text += pad + "<DAI name=\"" + XmlEscape(parts[0]) + "\">" + nl;
+		int level = 1;
+		for (size_t i = 1; i + 1 < parts.size(); ++i, ++level)
+			text += std::string(indentBase + 2 * level, ' ') + "<SDI name=\"" + XmlEscape(parts[i]) + "\">" + nl;
+		text += std::string(indentBase + 2 * level, ' ') + "<Val>" + XmlEscape(dai.val) + "</Val>" + nl;
+		for (size_t i = parts.size() - 1; i >= 1; --i)
+		{
+			--level;
+			text += std::string(indentBase + 2 * level, ' ') + "</SDI>" + nl;
+		}
+		text += pad + "</DAI>" + nl;
+	}
+
+	static const char* BoolAttr(bool b)
+	{
+		return b ? "true" : "false";
+	}
+
 	std::string BuildSclText(const SclModel& model, bool withCommunication)
 	{
 		const SclIed& ied = model.ied;
@@ -89,26 +128,86 @@ namespace SclWriter
 			char portBuf[32];
 			sprintf(portBuf, "%d", ied.port);
 			text += "  <Communication>" + nl;
-			text += "    <SubNetwork name=\"subnetwork1\" type=\"8-MMS\">" + nl;
-			text += "      <ConnectedAP iedName=\"" + XmlEscape(ied.name) + "\" apName=\"" + XmlEscape(ied.apName) + "\">" + nl;
-			text += "        <Address>" + nl;
-			if (!ied.pParams.empty())
+			if (!model.subnets.empty())
 			{
-				// 读取文件时保序保存的全部地址参数
-				for (size_t p = 0; p < ied.pParams.size(); ++p)
-					text += "          <P type=\"" + XmlEscape(ied.pParams[p].first) + "\">" +
-						XmlEscape(ied.pParams[p].second) + "</P>" + nl;
+				// 完整通信段（多子网/多接入点/GSE/SMV 地址）
+				for (size_t s = 0; s < model.subnets.size(); ++s)
+				{
+					const SclSubNetwork& sn = model.subnets[s];
+					text += "    <SubNetwork name=\"" + XmlEscape(sn.name) + "\" type=\"" + XmlEscape(sn.type) + "\">" + nl;
+					for (size_t c = 0; c < sn.aps.size(); ++c)
+					{
+						const SclConnectedAP& cap = sn.aps[c];
+						text += "      <ConnectedAP iedName=\"" + XmlEscape(cap.iedName) + "\" apName=\"" + XmlEscape(cap.apName) + "\">" + nl;
+						if (!cap.pParams.empty())
+						{
+							text += "        <Address>" + nl;
+							for (size_t p = 0; p < cap.pParams.size(); ++p)
+								text += "          <P type=\"" + XmlEscape(cap.pParams[p].first) + "\">" +
+									XmlEscape(cap.pParams[p].second) + "</P>" + nl;
+							text += "        </Address>" + nl;
+						}
+						for (size_t g = 0; g < cap.gses.size(); ++g)
+						{
+							const SclCommAddress& ga = cap.gses[g];
+							text += "      <GSE ldInst=\"" + XmlEscape(ga.ldInst) + "\" cbName=\"" + XmlEscape(ga.cbName) + "\">" + nl;
+							if (!ga.pParams.empty())
+							{
+								text += "        <Address>" + nl;
+								for (size_t p = 0; p < ga.pParams.size(); ++p)
+									text += "          <P type=\"" + XmlEscape(ga.pParams[p].first) + "\">" +
+										XmlEscape(ga.pParams[p].second) + "</P>" + nl;
+								text += "        </Address>" + nl;
+							}
+							if (!ga.minTime.empty())
+								text += "        <MinTime>" + XmlEscape(ga.minTime) + "</MinTime>" + nl;
+							if (!ga.maxTime.empty())
+								text += "        <MaxTime>" + XmlEscape(ga.maxTime) + "</MaxTime>" + nl;
+							text += "      </GSE>" + nl;
+						}
+						for (size_t g = 0; g < cap.smvs.size(); ++g)
+						{
+							const SclCommAddress& sa = cap.smvs[g];
+							text += "      <SMV ldInst=\"" + XmlEscape(sa.ldInst) + "\" cbName=\"" + XmlEscape(sa.cbName) + "\">" + nl;
+							if (!sa.pParams.empty())
+							{
+								text += "        <Address>" + nl;
+								for (size_t p = 0; p < sa.pParams.size(); ++p)
+									text += "          <P type=\"" + XmlEscape(sa.pParams[p].first) + "\">" +
+										XmlEscape(sa.pParams[p].second) + "</P>" + nl;
+								text += "        </Address>" + nl;
+							}
+							text += "      </SMV>" + nl;
+						}
+						text += "      </ConnectedAP>" + nl;
+					}
+					text += "    </SubNetwork>" + nl;
+				}
 			}
 			else
 			{
-				text += "          <P type=\"IP\">" + XmlEscape(ied.ip) + "</P>" + nl;
-				text += "          <P type=\"IP-SUBNET\">" + XmlEscape(ied.ipSubnet) + "</P>" + nl;
-				text += "          <P type=\"IP-GATEWAY\">" + XmlEscape(ied.ipGateway) + "</P>" + nl;
-				text += "          <P type=\"MMS-Port\">" + std::string(portBuf) + "</P>" + nl;
+				// 兼容格式：单子网
+				text += "    <SubNetwork name=\"subnetwork1\" type=\"8-MMS\">" + nl;
+				text += "      <ConnectedAP iedName=\"" + XmlEscape(ied.name) + "\" apName=\"" + XmlEscape(ied.apName) + "\">" + nl;
+				text += "        <Address>" + nl;
+				if (!ied.pParams.empty())
+				{
+					// 读取文件时保序保存的全部地址参数
+					for (size_t p = 0; p < ied.pParams.size(); ++p)
+						text += "          <P type=\"" + XmlEscape(ied.pParams[p].first) + "\">" +
+							XmlEscape(ied.pParams[p].second) + "</P>" + nl;
+				}
+				else
+				{
+					text += "          <P type=\"IP\">" + XmlEscape(ied.ip) + "</P>" + nl;
+					text += "          <P type=\"IP-SUBNET\">" + XmlEscape(ied.ipSubnet) + "</P>" + nl;
+					text += "          <P type=\"IP-GATEWAY\">" + XmlEscape(ied.ipGateway) + "</P>" + nl;
+					text += "          <P type=\"MMS-Port\">" + std::string(portBuf) + "</P>" + nl;
+				}
+				text += "        </Address>" + nl;
+				text += "      </ConnectedAP>" + nl;
+				text += "    </SubNetwork>" + nl;
 			}
-			text += "        </Address>" + nl;
-			text += "      </ConnectedAP>" + nl;
-			text += "    </SubNetwork>" + nl;
 			text += "  </Communication>" + nl;
 		}
 
@@ -219,13 +318,147 @@ namespace SclWriter
 				for (size_t d = 0; d < ln.dos.size(); ++d)
 				{
 					const SclDo& dobj = ln.dos[d];
-					if (dobj.desc.empty())
+					if (dobj.desc.empty() && dobj.dais.empty())
 						continue;
 					text += "            <DOI name=\"" + XmlEscape(dobj.name) + "\">" + nl;
-					text += "              <DAI name=\"d\">" + nl;
-					text += "                <Val>" + XmlEscape(dobj.desc) + "</Val>" + nl;
-					text += "              </DAI>" + nl;
+					if (!dobj.desc.empty())
+					{
+						text += "              <DAI name=\"d\">" + nl;
+						text += "                <Val>" + XmlEscape(dobj.desc) + "</Val>" + nl;
+						text += "              </DAI>" + nl;
+					}
+					for (size_t k = 0; k < dobj.dais.size(); ++k)
+						EmitDai(dobj.dais[k], 14, text, nl);
 					text += "            </DOI>" + nl;
+				}
+
+				// 数据集
+				for (size_t s = 0; s < ln.dataSets.size(); ++s)
+				{
+					const SclDataSet& ds = ln.dataSets[s];
+					text += "            <DataSet name=\"" + XmlEscape(ds.name) + "\">" + nl;
+					for (size_t k = 0; k < ds.fcdas.size(); ++k)
+					{
+						const SclFcda& f = ds.fcdas[k];
+						text += "              <FCDA iedName=\"" + XmlEscape(f.iedName) + "\" ldInst=\"" +
+							XmlEscape(f.ldInst) + "\" prefix=\"" + XmlEscape(f.prefix) + "\" lnClass=\"" +
+							XmlEscape(f.lnClass) + "\" lnInst=\"" + XmlEscape(f.lnInst) + "\" doName=\"" +
+							XmlEscape(f.doName) + "\" daName=\"" + XmlEscape(f.daName) + "\" fc=\"" +
+							XmlEscape(f.fc) + "\" />" + nl;
+					}
+					text += "            </DataSet>" + nl;
+				}
+
+				// 报告控制块
+				for (size_t s = 0; s < ln.reports.size(); ++s)
+				{
+					const SclReportControl& rc = ln.reports[s];
+					std::string open = "            <ReportControl name=\"" + XmlEscape(rc.name) + "\"";
+					if (!rc.rptId.empty())
+						open += " rptID=\"" + XmlEscape(rc.rptId) + "\"";
+					if (rc.buffered)
+						open += " buffered=\"true\"";
+					if (!rc.bufTime.empty())
+						open += " bufTime=\"" + XmlEscape(rc.bufTime) + "\"";
+					if (!rc.indexed)
+						open += " indexed=\"false\"";
+					if (!rc.dataSet.empty())
+						open += " datSet=\"" + XmlEscape(rc.dataSet) + "\"";
+					if (!rc.intgPd.empty())
+						open += " intgPd=\"" + XmlEscape(rc.intgPd) + "\"";
+					open += ">";
+					text += open + nl;
+					if (rc.trgOps.present)
+						text += "              <TrgOps dchg=\"" + std::string(BoolAttr(rc.trgOps.dchg)) +
+							"\" qchg=\"" + BoolAttr(rc.trgOps.qchg) + "\" dupd=\"" + BoolAttr(rc.trgOps.dupd) +
+							"\" period=\"" + BoolAttr(rc.trgOps.period) + "\" gi=\"" + BoolAttr(rc.trgOps.gi) + "\" />" + nl;
+					if (rc.optFields.present)
+						text += "              <OptFields seqNum=\"" + std::string(BoolAttr(rc.optFields.seqNum)) +
+							"\" timeStamp=\"" + BoolAttr(rc.optFields.timeStamp) + "\" dataSet=\"" + BoolAttr(rc.optFields.dataSet) +
+							"\" reasonCode=\"" + BoolAttr(rc.optFields.reasonCode) + "\" dataRef=\"" + BoolAttr(rc.optFields.dataRef) +
+							"\" bufOvfl=\"" + BoolAttr(rc.optFields.bufOvfl) + "\" entryID=\"" + BoolAttr(rc.optFields.entryID) +
+							"\" config=\"" + BoolAttr(rc.optFields.config) + "\" />" + nl;
+					if (rc.maxClients >= 0)
+					{
+						char mb[32];
+						sprintf(mb, "%d", rc.maxClients);
+						text += "              <RptEnabled max=\"" + std::string(mb) + "\" />" + nl;
+					}
+					if (!rc.confRev.empty())
+						text += "              <ConfRev>" + XmlEscape(rc.confRev) + "</ConfRev>" + nl;
+					text += "            </ReportControl>" + nl;
+				}
+
+				// GOOSE 控制块
+				for (size_t s = 0; s < ln.gses.size(); ++s)
+				{
+					const SclGseControl& gc = ln.gses[s];
+					std::string open = "            <GSEControl name=\"" + XmlEscape(gc.name) + "\"";
+					if (!gc.appId.empty())
+						open += " appID=\"" + XmlEscape(gc.appId) + "\"";
+					if (gc.fixedOffs)
+						open += " fixedOffs=\"true\"";
+					if (!gc.dataSet.empty())
+						open += " datSet=\"" + XmlEscape(gc.dataSet) + "\"";
+					open += ">";
+					text += open + nl;
+					if (!gc.confRev.empty())
+						text += "              <ConfRev>" + XmlEscape(gc.confRev) + "</ConfRev>" + nl;
+					text += "            </GSEControl>" + nl;
+				}
+
+				// 采样值控制块
+				for (size_t s = 0; s < ln.smvs.size(); ++s)
+				{
+					const SclSampledValueControl& sc = ln.smvs[s];
+					std::string open = "            <SampledValueControl name=\"" + XmlEscape(sc.name) + "\"";
+					if (!sc.smvId.empty())
+						open += " smvID=\"" + XmlEscape(sc.smvId) + "\"";
+					if (!sc.dataSet.empty())
+						open += " datSet=\"" + XmlEscape(sc.dataSet) + "\"";
+					if (!sc.smpMod.empty())
+						open += " smpMod=\"" + XmlEscape(sc.smpMod) + "\"";
+					if (!sc.smpRate.empty())
+						open += " smpRate=\"" + XmlEscape(sc.smpRate) + "\"";
+					if (!sc.nofASDU.empty())
+						open += " nofASDU=\"" + XmlEscape(sc.nofASDU) + "\"";
+					open += ">";
+					text += open + nl;
+					if (!sc.confRev.empty())
+						text += "              <ConfRev>" + XmlEscape(sc.confRev) + "</ConfRev>" + nl;
+					text += "            </SampledValueControl>" + nl;
+				}
+
+				// 日志控制块
+				for (size_t s = 0; s < ln.logs.size(); ++s)
+				{
+					const SclLogControl& lc = ln.logs[s];
+					std::string open = "            <LogControl name=\"" + XmlEscape(lc.name) + "\"";
+					if (!lc.dataSet.empty())
+						open += " datSet=\"" + XmlEscape(lc.dataSet) + "\"";
+					if (!lc.logName.empty())
+						open += " logName=\"" + XmlEscape(lc.logName) + "\"";
+					if (!lc.intgPd.empty())
+						open += " intgPd=\"" + XmlEscape(lc.intgPd) + "\"";
+					open += ">";
+					text += open + nl;
+					if (lc.trgOps.present)
+						text += "              <TrgOps dchg=\"" + std::string(BoolAttr(lc.trgOps.dchg)) +
+							"\" qchg=\"" + BoolAttr(lc.trgOps.qchg) + "\" dupd=\"" + BoolAttr(lc.trgOps.dupd) +
+							"\" period=\"" + BoolAttr(lc.trgOps.period) + "\" gi=\"" + BoolAttr(lc.trgOps.gi) + "\" />" + nl;
+					text += "            </LogControl>" + nl;
+				}
+
+				// 定值控制块
+				for (size_t s = 0; s < ln.settings.size(); ++s)
+				{
+					const SclSettingControl& sc = ln.settings[s];
+					std::string open = "            <SettingControl name=\"" + XmlEscape(sc.name) + "\"";
+					if (!sc.dataSet.empty())
+						open += " datSet=\"" + XmlEscape(sc.dataSet) + "\"";
+					if (!sc.numOfSG.empty())
+						open += " numOfSG=\"" + XmlEscape(sc.numOfSG) + "\"";
+					text += open + " />" + nl;
 				}
 				if (i == 0)
 					text += "          </LN0>" + nl;

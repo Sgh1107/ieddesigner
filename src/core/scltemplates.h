@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <utility>
 #include "sclmodel.h"
 
 struct SclDaT
@@ -35,6 +36,26 @@ struct SclLnT
 	int count;
 };
 
+// 某个 DO 可编辑的 DAI 规格（Struct DA 已展开为点分路径）
+struct SclDaiSpec
+{
+	std::string path;      // 如 "mag.f"、"ctlModel"
+	std::string bType;
+	std::string fc;
+	std::string enumId;    // bType==Enum 时的枚举类型 id
+};
+
+// CDC 模板（内置或用户自定义）
+struct SclCdcTemplate
+{
+	std::string cdc;
+	std::string desc;
+	std::vector<SclDa> das;
+	bool isCustom;
+
+	SclCdcTemplate() : isCustom(false) {}
+};
+
 namespace SclTemplates
 {
 	const std::vector<SclLnT>& LnTypes();
@@ -42,6 +63,19 @@ namespace SclTemplates
 	std::vector<std::string> LnClassList();
 	std::vector<SclDa> DasForCdc(const std::string& cdc, const std::string& stValEnum);
 	SclLn MakeLn(const std::string& lnClass);
+
+	// 某个 DO 的可用 DAI 规格（Struct DA 递归展开 BDA 为点分路径）
+	std::vector<SclDaiSpec> DaiSpecsForDo(const std::string& cdc, const std::string& stValEnum,
+		const std::vector<SclDa>& customDas, bool hasCustomDas);
+
+	// 已知 DAType 的 BDA 列表（未知名返回空）
+	std::vector<SclDa> BdasForDaType(const std::string& id);
+
+	// 已知枚举类型的取值表（未知名返回空；自定义枚举查模型 extraEnumTypes）
+	std::vector<std::pair<int, std::string> > EnumValsFor(const std::string& id);
+
+	// 内置 CDC 模板清单
+	std::vector<SclCdcTemplate> BuiltinCdcTemplates();
 }
 
 #endif

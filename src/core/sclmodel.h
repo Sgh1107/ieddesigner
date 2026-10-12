@@ -15,12 +15,23 @@ struct SclDa
 	SclDa() {}
 };
 
+// DOI 下的 DAI 值设置：name 为点分路径（Struct DA 展开为 "mag.f" 形式），val 为 Val 文本
+struct SclDai
+{
+	std::string name;
+	std::string val;
+
+	SclDai() {}
+	SclDai(const std::string& n, const std::string& v) : name(n), val(v) {}
+};
+
 struct SclDo
 {
 	std::string name;
 	std::string cdc;
 	std::string stValEnum;
 	std::string desc;
+	std::vector<SclDai> dais;      // 已设置的 DAI 值（不含 "d"，desc 单独存放）
 	std::vector<SclDa> customDas;
 	bool hasCustomDas;
 	std::string customDoTypeId;
@@ -28,6 +39,149 @@ struct SclDo
 	SclDo() : hasCustomDas(false) {}
 	SclDo(const std::string& n, const std::string& c, const std::string& e)
 		: name(n), cdc(c), stValEnum(e), hasCustomDas(false) {}
+
+	const std::string* FindDaiVal(const std::string& daiName) const;
+	void SetDaiVal(const std::string& daiName, const std::string& val);   // val 置空即删除
+};
+
+// ---------------- 数据集与控制块（挂在 LN0/LN 下） ----------------
+
+// FCDA 成员：引用到 DO（daName 空表示到 DO 级）
+struct SclFcda
+{
+	std::string iedName;
+	std::string ldInst;
+	std::string prefix;
+	std::string lnClass;
+	std::string lnInst;
+	std::string doName;
+	std::string daName;   // 可空
+	std::string fc;
+
+	std::string RefText() const;   // "IEDLD1/LN1.DO" 风格展示文本
+};
+
+struct SclDataSet
+{
+	std::string name;
+	std::string desc;
+	std::vector<SclFcda> fcdas;
+};
+
+// TrgOps 触发条件（present=元素是否存在，保证往返保真）
+struct SclTrgOps
+{
+	bool present;
+	bool dchg;
+	bool qchg;
+	bool dupd;
+	bool period;
+	bool gi;
+
+	SclTrgOps() : present(false), dchg(false), qchg(false), dupd(false), period(false), gi(false) {}
+};
+
+// OptFields 可选字段
+struct SclOptFields
+{
+	bool present;
+	bool seqNum;
+	bool timeStamp;
+	bool dataSet;
+	bool reasonCode;
+	bool dataRef;
+	bool bufOvfl;
+	bool entryID;
+	bool config;
+
+	SclOptFields() : present(false), seqNum(false), timeStamp(false), dataSet(false), reasonCode(false),
+		dataRef(false), bufOvfl(false), entryID(false), config(false) {}
+};
+
+struct SclReportControl
+{
+	std::string name;
+	std::string rptId;      // 空=不输出
+	std::string cbId;       // 控制块 ID (RptID/CBID)
+	std::string dataSet;
+	std::string confRev;
+	bool buffered;          // true=BRCB
+	std::string bufTime;    // 空=不输出
+	std::string intgPd;     // ms，空=不输出
+	SclTrgOps trgOps;
+	SclOptFields optFields;
+	bool indexed;
+	int maxClients;         // -1=不输出
+
+	SclReportControl() : buffered(false), indexed(true), maxClients(-1) {}
+};
+
+struct SclGseControl
+{
+	std::string name;
+	std::string appId;
+	std::string dataSet;
+	std::string confRev;
+	bool fixedOffs;
+
+	SclGseControl() : fixedOffs(false) {}
+};
+
+struct SclSampledValueControl
+{
+	std::string name;
+	std::string smvId;
+	std::string dataSet;
+	std::string confRev;
+	std::string smpRate;    // 采样点数，如 "80"
+	std::string nofASDU;    // 默认 "1"
+	std::string smpMod;     // "S"=每周波采样 "P"=每秒采样
+
+	SclSampledValueControl() : smpRate("80"), nofASDU("1"), smpMod("S") {}
+};
+
+struct SclLogControl
+{
+	std::string name;
+	std::string dataSet;
+	std::string logName;
+	std::string intgPd;     // 空=不输出
+	SclTrgOps trgOps;
+};
+
+struct SclSettingControl
+{
+	std::string name;
+	std::string dataSet;
+	std::string numOfSG;    // 定值组数，空=不输出
+};
+
+// ---------------- Communication 段 ----------------
+
+// GSE/SMV 通信地址（<GSE ldInst cbName> / <SMV ldInst cbName>）
+struct SclCommAddress
+{
+	std::string ldInst;
+	std::string cbName;
+	std::vector<std::pair<std::string, std::string> > pParams;  // MAC-Address/APPID/VLAN-ID/VLAN-PRIORITY
+	std::string minTime;    // GSE 专用（ms），空=不输出
+	std::string maxTime;    // GSE 专用，空=不输出
+};
+
+struct SclConnectedAP
+{
+	std::string apName;
+	std::string iedName;
+	std::vector<std::pair<std::string, std::string> > pParams;
+	std::vector<SclCommAddress> gses;
+	std::vector<SclCommAddress> smvs;
+};
+
+struct SclSubNetwork
+{
+	std::string name;
+	std::string type;       // 如 "8-MMS"
+	std::vector<SclConnectedAP> aps;
 };
 
 struct SclLn
@@ -38,6 +192,12 @@ struct SclLn
 	std::string desc;
 	std::string comment;      // XML 注释（写出时剔除特殊字符）
 	std::vector<SclDo> dos;
+	std::vector<SclDataSet> dataSets;
+	std::vector<SclReportControl> reports;
+	std::vector<SclGseControl> gses;
+	std::vector<SclSampledValueControl> smvs;
+	std::vector<SclLogControl> logs;
+	std::vector<SclSettingControl> settings;
 
 	std::string Name() const;
 };
@@ -119,6 +279,7 @@ struct SclModel
 	std::string toolName;
 	std::vector<SclHistoryItem> history;    // Header 修订历史
 	SclIed ied;
+	std::vector<SclSubNetwork> subnets;     // Communication 段（空=按兼容格式输出）
 	std::vector<SclExtraDoType> extraDoTypes;
 	std::vector<SclExtraDaType> extraDaTypes;
 	std::vector<SclExtraEnumType> extraEnumTypes;

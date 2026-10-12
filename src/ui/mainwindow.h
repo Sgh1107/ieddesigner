@@ -5,6 +5,7 @@
 #include <QString>
 #include <QFile>
 #include "sclmodel.h"
+#include "scltemplates.h"
 
 class QTreeWidget;
 class QTreeWidgetItem;
@@ -73,6 +74,54 @@ private:
 	bool ldInstExists(const std::string& inst, int skipLi) const;
 	bool lnExistsInLd(const SclLDevice& ld, const std::string& prefix,
 		const std::string& lnClass, const std::string& inst, int skipNi) const;
+
+	// 第二期：DO/DAI 编辑与模板库
+	void loadUserTemplates();
+	void saveUserTemplates() const;
+	void manageTemplates();
+	void addDo(int li, int ni);
+	void editDo(int li, int ni, int di);
+	void deleteDo(int li, int ni, int di);
+	std::vector<SclCdcTemplate> mergedCdcTemplates() const;
+	SclCdcTemplate findCdcTemplate(const std::string& cdc, bool& found) const;
+	QStringList enumIdList() const;
+	std::vector<std::pair<int, std::string> > enumValsFor(const std::string& id) const;
+	std::vector<SclDaiSpec> daiSpecsFor(const SclDo& dobj) const;
+	static bool cdcNeedsStValEnum(const std::vector<SclDa>& das);
+	static bool daiTypeEditable(const std::string& bType);
+	bool daiValueValid(const SclDaiSpec& spec, const QString& value, QString& normalized) const;
+
+	// 第二期第二批：数据集/控制块/通信段 + 界面
+	void setupToolbar();
+	QIcon iconForPath(const QString& path) const;
+	void addSubNet();
+	void deleteSubNet(int idx);
+	void addConnectedAP(int subnetIdx);
+	void deleteConnectedAP(int subnetIdx, int apIdx);
+	void addCommAddress(int subnetIdx, int apIdx, bool isGse);
+	void deleteCommAddress(int subnetIdx, int apIdx, bool isGse, int addrIdx);
+	void addDataSet(int li, int ni);
+	bool editDataSetDialog(SclDataSet& ds, int li);
+	void deleteDataSet(int li, int ni, int di);
+	void addReport(int li, int ni);
+	void addGseControl(int li, int ni);
+	void addSmvControl(int li, int ni);
+	void addLogControl(int li, int ni);
+	void addSettingControl(int li, int ni);
+	void deleteControlBlock(const QString& kind, int li, int ni, int idx);
+	bool parseBoolText(const QString& text, bool& out) const;
+	SclCommAddress* findGseAddress(const std::string& ldInst, const std::string& cbName);
+	SclCommAddress* findSmvAddress(const std::string& ldInst, const std::string& cbName);
+	SclCommAddress* ensureGseAddress(const std::string& ldInst, const std::string& cbName);
+	SclCommAddress* ensureSmvAddress(const std::string& ldInst, const std::string& cbName);
+
+	std::vector<SclCdcTemplate> m_userCdc;
+	QAction* m_actNew;
+	QAction* m_actOpen;
+	QAction* m_actSave;
+	QAction* m_actExportIcd;
+	QAction* m_actTemplates;
+	QAction* m_actXml;
 
 	QTreeWidget* m_tree;
 	QTableWidget* m_props;
