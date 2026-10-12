@@ -135,18 +135,18 @@ MainWindow::MainWindow(QWidget* parent)
 
 	m_tree = new QTreeWidget(this);
 	m_tree->setColumnCount(2);
-	m_tree->setHeaderLabels(QStringList() << tr("标题") << tr("详细"));
+	m_tree->setHeaderLabels(QStringList() << tr("Title") << tr("Detail"));
 	m_tree->setContextMenuPolicy(Qt::CustomContextMenu);
 	setCentralWidget(m_tree);
 
-	QDockWidget* propDock = new QDockWidget(tr("属性"), this);
+	QDockWidget* propDock = new QDockWidget(tr("Properties"), this);
 	m_props = new QTableWidget(this);
 	m_props->setColumnCount(2);
-	m_props->setHorizontalHeaderLabels(QStringList() << tr("属性") << tr("值"));
+	m_props->setHorizontalHeaderLabels(QStringList() << tr("Properties") << tr("Value"));
 	propDock->setWidget(m_props);
 	addDockWidget(Qt::LeftDockWidgetArea, propDock);
 
-	QDockWidget* logDock = new QDockWidget(tr("日志"), this);
+	QDockWidget* logDock = new QDockWidget(tr("Log"), this);
 	m_log = new QPlainTextEdit(this);
 	m_log->setReadOnly(true);
 	logDock->setWidget(m_log);
@@ -168,12 +168,12 @@ MainWindow::MainWindow(QWidget* parent)
 	m_tree->header()->setSectionResizeMode(1, QHeaderView::Stretch);  // 第1列自适应拉伸
 	m_tree->header()->resizeSection(0, 300);                 // 初始宽度，作为比例参考
 	m_tree->header()->resizeSection(1, 500);
-	log(tr("就绪。新建模型已载入：IED=%1").arg(QString::fromUtf8(m_model.ied.name.c_str())));
+	log(tr("Ready. New model loaded: IED=%1").arg(QString::fromUtf8(m_model.ied.name.c_str())));
 }
 
 MainWindow::~MainWindow()
 {
-	logFileLine(tr("===== ieddesigner 退出 ====="));
+	logFileLine(tr("===== ieddesigner exited ====="));
 	if (m_logFile.isOpen())
 		m_logFile.close();
 }
@@ -186,7 +186,7 @@ void MainWindow::initLogFile()
 	m_logFile.setFileName(dir + "/" + QDate::currentDate().toString("yyyy-MM-dd") + ".log");
 	if (!m_logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text))
 		return;
-	logFileLine(tr("===== ieddesigner 启动（Qt %1）=====").arg(QT_VERSION_STR));
+	logFileLine(tr("===== ieddesigner started (Qt %1) =====").arg(QT_VERSION_STR));
 }
 
 void MainWindow::logFileLine(const QString& text)
@@ -200,13 +200,13 @@ void MainWindow::logFileLine(const QString& text)
 
 void MainWindow::setupToolbar()
 {
-	QToolBar* tb = addToolBar(tr("常用"));
+	QToolBar* tb = addToolBar(tr("Main"));
 	tb->setObjectName("mainToolbar");
 	tb->setIconSize(QSize(20, 20));
 	tb->setMovable(false);
 	tb->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
 	tb->addAction(m_actNew);
-	tb->addAction(m_actOpen);
+	tb->addAction(m_openAct);
 	tb->addAction(m_actSave);
 	tb->addSeparator();
 	tb->addAction(m_actExportIcd);
@@ -218,42 +218,42 @@ void MainWindow::setupToolbar()
 
 void MainWindow::setupMenus()
 {
-	QMenu* fileMenu = menuBar()->addMenu(tr("文件"));
-	m_actNew = new QAction(QIcon(":/icons/new.svg"), tr("新建"), this);
+	QMenu* fileMenu = menuBar()->addMenu(tr("File"));
+	m_actNew = new QAction(QIcon(":/icons/new.svg"), tr("New"), this);
 	connect(m_actNew, SIGNAL(triggered()), this, SLOT(onNewModel()));
 	fileMenu->addAction(m_actNew);
-	m_actOpen = new QAction(QIcon(":/icons/open.svg"), tr("打开SCL模型"), this);
-	connect(m_actOpen, SIGNAL(triggered()), this, SLOT(onOpenScl()));
-	fileMenu->addAction(m_actOpen);
-	m_recentMenu = fileMenu->addMenu(tr("最近打开"));
+	m_openAct = new QAction(QIcon(":/icons/open.svg"), tr("Open SCL model"), this);
+	connect(m_openAct, SIGNAL(triggered()), this, SLOT(onOpenScl()));
+	fileMenu->addAction(m_openAct);
+	m_recentMenu = fileMenu->addMenu(tr("Open recent"));
 	rebuildRecentMenu();
-	m_actSave = new QAction(QIcon(":/icons/save.svg"), tr("保存"), this);
+	m_actSave = new QAction(QIcon(":/icons/save.svg"), tr("Save"), this);
 	connect(m_actSave, SIGNAL(triggered()), this, SLOT(onSaveCid()));
 	fileMenu->addAction(m_actSave);
-	fileMenu->addAction(tr("另存为"), this, SLOT(onSaveCidAs()));
-	QAction* closeAct = fileMenu->addAction(tr("关闭"));
+	fileMenu->addAction(tr("Save as"), this, SLOT(onSaveCidAs()));
+	QAction* closeAct = fileMenu->addAction(tr("Close"));
 	closeAct->setEnabled(false);
 	fileMenu->addSeparator();
-	fileMenu->addAction(tr("退出"), this, SLOT(close()));
+	fileMenu->addAction(tr("Exit"), this, SLOT(close()));
 
-	QMenu* toolMenu = menuBar()->addMenu(tr("工具"));
-	QAction* expIcdAct = new QAction(QIcon(":/icons/export.svg"), tr("导出ICD文件"), this);
+	QMenu* toolMenu = menuBar()->addMenu(tr("Tools"));
+	QAction* expIcdAct = new QAction(QIcon(":/icons/export.svg"), tr("Export ICD file"), this);
 	connect(expIcdAct, SIGNAL(triggered()), this, SLOT(onExportIcd()));
 	toolMenu->addAction(expIcdAct);
 	m_actExportIcd = expIcdAct;
-	toolMenu->addAction(tr("导出CID文件"), this, SLOT(onExportCid()));
-	toolMenu->addAction(tr("导出CSV点表"), this, SLOT(onExportCsv()));
+	toolMenu->addAction(tr("Export CID file"), this, SLOT(onExportCid()));
+	toolMenu->addAction(tr("Export CSV point table"), this, SLOT(onExportCsv()));
 	toolMenu->addSeparator();
-	m_actTemplates = new QAction(QIcon(":/icons/templates.svg"), tr("模板库管理"), this);
+	m_actTemplates = new QAction(QIcon(":/icons/templates.svg"), tr("Template library"), this);
 	connect(m_actTemplates, SIGNAL(triggered()), this, SLOT(manageTemplates()));
 	toolMenu->addAction(m_actTemplates);
-	m_actXml = new QAction(QIcon(":/icons/preview.svg"), tr("XML 源码预览"), this);
+	m_actXml = new QAction(QIcon(":/icons/preview.svg"), tr("XML source preview"), this);
 	connect(m_actXml, SIGNAL(triggered()), this, SLOT(onXmlPreview()));
 	toolMenu->addAction(m_actXml);
 	toolMenu->addSeparator();
-	m_jsonAct = toolMenu->addAction(tr("导入在线JSON"));
+	m_jsonAct = toolMenu->addAction(tr("Import online JSON"));
 	connect(m_jsonAct, SIGNAL(triggered()), this, SLOT(onImportJson()));
-	m_onlineAct = toolMenu->addAction(tr("在线读取IED"));
+	m_onlineAct = toolMenu->addAction(tr("Read IED online"));
 	connect(m_onlineAct, SIGNAL(triggered()), this, SLOT(onOnlineRead()));
 }
 
@@ -266,7 +266,7 @@ void MainWindow::rebuildRecentMenu()
 	QStringList files = settings.value("recentFiles").toStringList();
 	if (files.isEmpty())
 	{
-		QAction* emptyAct = m_recentMenu->addAction(tr("（无）"));
+		QAction* emptyAct = m_recentMenu->addAction(tr("(None)"));
 		emptyAct->setEnabled(false);
 	}
 	else
@@ -278,12 +278,12 @@ void MainWindow::rebuildRecentMenu()
 			connect(act, &QAction::triggered, this, [this, f]() { openSclPath(f); });
 		}
 		m_recentMenu->addSeparator();
-		QAction* clearAct = m_recentMenu->addAction(tr("清空历史"));
+		QAction* clearAct = m_recentMenu->addAction(tr("Clear history"));
 		connect(clearAct, &QAction::triggered, this, [this]() {
 			QSettings s("newfert", "ieddesigner");
 			s.remove("recentFiles");
 			rebuildRecentMenu();
-			log(tr("已清空最近打开历史"));
+			log(tr("Recent file history cleared"));
 		});
 	}
 }
@@ -359,8 +359,8 @@ void MainWindow::buildTree()
 	// 修订历史
 	if (!m_model.history.empty())
 	{
-		QTreeWidgetItem* histItem = addNode(iedItem, tr("修订历史"),
-			tr("共 %1 条").arg((int)m_model.history.size()), "history");
+		QTreeWidgetItem* histItem = addNode(iedItem, tr("Revision history"),
+			tr("%1 items").arg((int)m_model.history.size()), "history");
 		for (size_t i = 0; i < m_model.history.size(); ++i)
 		{
 			const SclHistoryItem& h = m_model.history[i];
@@ -374,13 +374,13 @@ void MainWindow::buildTree()
 
 	// 主接入点（挂 Server）与附加接入点
 	QTreeWidgetItem* apItem = addNode(iedItem, tr("AccessPoint ") + QString::fromUtf8(ied.apName.c_str()),
-		tr("主接入点"), "ap:0");
+		tr("Primary access point"), "ap:0");
 	QTreeWidgetItem* svrItem = addNode(apItem, tr("Server"), QString(), "server");
 	for (size_t a = 0; a < ied.extraAps.size(); ++a)
 	{
 		QString detail;
 		if (ied.extraAps[a].serverAt.empty())
-			detail = tr("独立接入点");
+			detail = tr("Standalone access point");
 		else
 			detail = tr("ServerAt -> %1").arg(QString::fromUtf8(ied.extraAps[a].serverAt.c_str()));
 		addNode(iedItem, tr("AccessPoint ") + QString::fromUtf8(ied.extraAps[a].name.c_str()),
@@ -407,20 +407,20 @@ void MainWindow::buildTree()
 	auto addCbSections = [&](QTreeWidgetItem* lnItem, int li, int ni, const SclLn& ln) {
 		if (!ln.dataSets.empty())
 		{
-			QTreeWidgetItem* sec = addNode(lnItem, tr("数据集"), tr("%1 个").arg((int)ln.dataSets.size()),
+			QTreeWidgetItem* sec = addNode(lnItem, tr("DataSets"), tr("%1 item(s)").arg((int)ln.dataSets.size()),
 				QString("ds-sec:%1:%2").arg(li).arg(ni));
 			for (size_t s = 0; s < ln.dataSets.size(); ++s)
-				addNode(sec, tr("数据集 ") + QString::fromUtf8(ln.dataSets[s].name.c_str()),
-					tr("%1 个 FCDA").arg((int)ln.dataSets[s].fcdas.size()),
+				addNode(sec, tr("DataSet ") + QString::fromUtf8(ln.dataSets[s].name.c_str()),
+					tr("%1 FCDA").arg((int)ln.dataSets[s].fcdas.size()),
 					QString("ds:%1:%2:%3").arg(li).arg(ni).arg((int)s));
 		}
 		int cbCount = (int)(ln.reports.size() + ln.gses.size() + ln.smvs.size() + ln.logs.size() + ln.settings.size());
 		if (cbCount > 0)
 		{
-			QTreeWidgetItem* sec = addNode(lnItem, tr("控制块"), tr("%1 个").arg(cbCount),
+			QTreeWidgetItem* sec = addNode(lnItem, tr("Control blocks"), tr("%1 item(s)").arg(cbCount),
 				QString("cb-sec:%1:%2").arg(li).arg(ni));
 			for (size_t s = 0; s < ln.reports.size(); ++s)
-				addNode(sec, tr("报告 ") + QString::fromUtf8(ln.reports[s].name.c_str()),
+				addNode(sec, tr("Report ") + QString::fromUtf8(ln.reports[s].name.c_str()),
 					(ln.reports[s].buffered ? tr("BRCB") : tr("URCB")) + QString(" -> ") +
 					QString::fromUtf8(ln.reports[s].dataSet.c_str()),
 					QString("rpt:%1:%2:%3").arg(li).arg(ni).arg((int)s));
@@ -429,15 +429,15 @@ void MainWindow::buildTree()
 					QString("appID=") + QString::fromUtf8(ln.gses[s].appId.c_str()),
 					QString("gcb:%1:%2:%3").arg(li).arg(ni).arg((int)s));
 			for (size_t s = 0; s < ln.smvs.size(); ++s)
-				addNode(sec, tr("采样值 ") + QString::fromUtf8(ln.smvs[s].name.c_str()),
+				addNode(sec, tr("SampledValue ") + QString::fromUtf8(ln.smvs[s].name.c_str()),
 					QString("smvID=") + QString::fromUtf8(ln.smvs[s].smvId.c_str()),
 					QString("smcb:%1:%2:%3").arg(li).arg(ni).arg((int)s));
 			for (size_t s = 0; s < ln.logs.size(); ++s)
-				addNode(sec, tr("日志 ") + QString::fromUtf8(ln.logs[s].name.c_str()),
+				addNode(sec, tr("Log ") + QString::fromUtf8(ln.logs[s].name.c_str()),
 					QString::fromUtf8(ln.logs[s].dataSet.c_str()),
 					QString("logcb:%1:%2:%3").arg(li).arg(ni).arg((int)s));
 			for (size_t s = 0; s < ln.settings.size(); ++s)
-				addNode(sec, tr("定值 ") + QString::fromUtf8(ln.settings[s].name.c_str()),
+				addNode(sec, tr("Setting ") + QString::fromUtf8(ln.settings[s].name.c_str()),
 					QString::fromUtf8(ln.settings[s].dataSet.c_str()),
 					QString("setcb:%1:%2:%3").arg(li).arg(ni).arg((int)s));
 		}
@@ -450,11 +450,11 @@ void MainWindow::buildTree()
 		if (!ld.desc.empty())
 			ldDetail += " " + QString::fromUtf8(ld.desc.c_str());
 		if (!ld.comment.empty())
-			ldDetail += " " + tr("[注释]");
+			ldDetail += " " + tr("[comment]");
 		QTreeWidgetItem* ldItem = addNode(svrItem, tr("LDevice ") + QString::fromUtf8(ld.inst.c_str()),
 			ldDetail, QString("ld:%1").arg((int)li));
 		QTreeWidgetItem* ln0Item = addNode(ldItem, tr("LN0 ") + QString::fromUtf8(ld.ln0.lnClass.c_str()),
-			tr("逻辑节点零"), QString("ln0:%1").arg((int)li));
+			tr("Logical node zero"), QString("ln0:%1").arg((int)li));
 		for (size_t d = 0; d < ld.ln0.dos.size(); ++d)
 		{
 			const SclDo& dobj = ld.ln0.dos[d];
@@ -469,7 +469,7 @@ void MainWindow::buildTree()
 			const SclLn& ln = ld.lns[ni];
 			QString lnDetail = QString::fromUtf8(ln.desc.c_str());
 			if (!ln.comment.empty())
-				lnDetail += (lnDetail.isEmpty() ? QString() : QString(" ")) + tr("[注释]");
+				lnDetail += (lnDetail.isEmpty() ? QString() : QString(" ")) + tr("[comment]");
 			QTreeWidgetItem* lnItem = addNode(ldItem, tr("LN ") + QString::fromUtf8(ln.Name().c_str()),
 				lnDetail, QString("ln:%1:%2").arg((int)li).arg((int)ni));
 			for (size_t d = 0; d < ln.dos.size(); ++d)
@@ -485,27 +485,27 @@ void MainWindow::buildTree()
 	}
 
 	// 通信
-	QTreeWidgetItem* commItem = addNode(0, tr("通信"), tr("%1 个子网").arg((int)m_model.subnets.size()), "comm");
+	QTreeWidgetItem* commItem = addNode(0, tr("Communication"), tr("%1 subnets").arg((int)m_model.subnets.size()), "comm");
 	for (size_t s = 0; s < m_model.subnets.size(); ++s)
 	{
 		const SclSubNetwork& sn = m_model.subnets[s];
-		QTreeWidgetItem* snItem = addNode(commItem, tr("子网 ") + QString::fromUtf8(sn.name.c_str()),
+		QTreeWidgetItem* snItem = addNode(commItem, tr("SubNetwork ") + QString::fromUtf8(sn.name.c_str()),
 			QString::fromUtf8(sn.type.c_str()), QString("subnet:%1").arg((int)s));
 		for (size_t c = 0; c < sn.aps.size(); ++c)
 		{
 			const SclConnectedAP& cap = sn.aps[c];
-			QTreeWidgetItem* capItem = addNode(snItem, tr("接入点 ") + QString::fromUtf8(cap.apName.c_str()),
-				QString::fromUtf8(cap.iedName.c_str()) + tr("，P 参数 %1 项").arg((int)cap.pParams.size()),
+			QTreeWidgetItem* capItem = addNode(snItem, tr("AccessPoint ") + QString::fromUtf8(cap.apName.c_str()),
+				QString::fromUtf8(cap.iedName.c_str()) + tr(", %1 P parameters").arg((int)cap.pParams.size()),
 				QString("cap:%1:%2").arg((int)s).arg((int)c));
 			for (size_t g = 0; g < cap.gses.size(); ++g)
 				addNode(capItem, tr("GSE ") + QString::fromUtf8(cap.gses[g].ldInst.c_str()) +
 					QString("/") + QString::fromUtf8(cap.gses[g].cbName.c_str()),
-					tr("地址 %1 项").arg((int)cap.gses[g].pParams.size()),
+					tr("%1 address entries").arg((int)cap.gses[g].pParams.size()),
 					QString("gse:%1:%2:%3").arg((int)s).arg((int)c).arg((int)g));
 			for (size_t v = 0; v < cap.smvs.size(); ++v)
 				addNode(capItem, tr("SMV ") + QString::fromUtf8(cap.smvs[v].ldInst.c_str()) +
 					QString("/") + QString::fromUtf8(cap.smvs[v].cbName.c_str()),
-					tr("地址 %1 项").arg((int)cap.smvs[v].pParams.size()),
+					tr("%1 address entries").arg((int)cap.smvs[v].pParams.size()),
 					QString("smv:%1:%2:%3").arg((int)s).arg((int)c).arg((int)v));
 		}
 	}
@@ -601,8 +601,8 @@ void MainWindow::populateProps(const QString& path)
 	if (path == "ied")
 	{
 		const SclIed& ied = m_model.ied;
-		keys << tr("IED名称") << tr("描述") << tr("厂家") << tr("类型") << tr("AccessPoint")
-			 << tr("IP") << tr("子网掩码") << tr("网关") << tr("端口");
+		keys << tr("IED name") << tr("Description") << tr("Manufacturer") << tr("Type") << tr("AccessPoint")
+			 << tr("IP") << tr("Subnet mask") << tr("Gateway") << tr("Port");
 		values << QString::fromUtf8(ied.name.c_str()) << QString::fromUtf8(ied.desc.c_str())
 			<< QString::fromUtf8(ied.manufacturer.c_str()) << QString::fromUtf8(ied.type.c_str())
 			<< QString::fromUtf8(ied.apName.c_str()) << QString::fromUtf8(ied.ip.c_str())
@@ -612,8 +612,8 @@ void MainWindow::populateProps(const QString& path)
 	}
 	else if (path == "history")
 	{
-		keys << tr("说明");
-		values << tr("在 IED 节点右键“添加修订历史”，条目可在此编辑");
+		keys << tr("Note");
+		values << tr("Right-click the IED node to add revision history; edit entries here");
 		editable << false;
 	}
 	else if (parts.size() == 2 && parts[0] == "hitem")
@@ -622,7 +622,7 @@ void MainWindow::populateProps(const QString& path)
 		if (hi >= 0 && hi < (int)m_model.history.size())
 		{
 			const SclHistoryItem& h = m_model.history[hi];
-			keys << tr("版本") << tr("内容") << tr("执行人") << tr("时间") << tr("原因");
+			keys << tr("Version") << tr("What") << tr("Who") << tr("When") << tr("Why");
 			values << QString::fromUtf8(h.version.c_str()) << QString::fromUtf8(h.what.c_str())
 				<< QString::fromUtf8(h.who.c_str()) << QString::fromUtf8(h.when.c_str())
 				<< QString::fromUtf8(h.why.c_str());
@@ -634,16 +634,16 @@ void MainWindow::populateProps(const QString& path)
 		int ai = parts[1].toInt();
 		if (ai == 0)
 		{
-			keys << tr("名称") << tr("类型");
-			values << QString::fromUtf8(m_model.ied.apName.c_str()) << tr("主接入点（含 Server）");
+			keys << tr("Name") << tr("Type");
+			values << QString::fromUtf8(m_model.ied.apName.c_str()) << tr("Primary access point (with Server)");
 			editable << true << false;
 		}
 		else if (ai - 1 < (int)m_model.ied.extraAps.size())
 		{
 			const SclAccessPoint& ap = m_model.ied.extraAps[ai - 1];
-			keys << tr("名称") << tr("ServerAt") << tr("类型");
+			keys << tr("Name") << tr("ServerAt") << tr("Type");
 			values << QString::fromUtf8(ap.name.c_str()) << QString::fromUtf8(ap.serverAt.c_str())
-				<< (ap.serverAt.empty() ? tr("独立接入点") : tr("ServerAt 引用"));
+				<< (ap.serverAt.empty() ? tr("Standalone access point") : tr("ServerAt reference"));
 			editable << true << true << false;
 		}
 	}
@@ -659,7 +659,7 @@ void MainWindow::populateProps(const QString& path)
 		SclLDevice* ld = ldAt(parts[1].toInt());
 		if (ld)
 		{
-			keys << tr("Instance") << tr("LDName") << tr("描述") << tr("注释");
+			keys << tr("Instance") << tr("LDName") << tr("Description") << tr("Comment");
 			values << QString::fromUtf8(ld->inst.c_str()) << QString::fromUtf8(ld->ldName.c_str())
 				<< QString::fromUtf8(ld->desc.c_str()) << QString::fromUtf8(ld->comment.c_str());
 			editable << true << true << true << true;
@@ -675,7 +675,7 @@ void MainWindow::populateProps(const QString& path)
 			ln = lnAt(parts[1].toInt(), parts[2].toInt());
 		if (ln)
 		{
-			keys << tr("Prefix") << tr("LnClass") << tr("Inst") << tr("描述") << tr("注释");
+			keys << tr("Prefix") << tr("LnClass") << tr("Inst") << tr("Description") << tr("Comment");
 			values << QString::fromUtf8(ln->prefix.c_str()) << QString::fromUtf8(ln->lnClass.c_str())
 				<< QString::fromUtf8(ln->inst.c_str()) << QString::fromUtf8(ln->desc.c_str())
 				<< QString::fromUtf8(ln->comment.c_str());
@@ -687,7 +687,7 @@ void MainWindow::populateProps(const QString& path)
 		SclDo* dobj = doAt(parts[1].toInt(), parts[2].toInt(), parts[3].toInt());
 		if (dobj)
 		{
-			keys << tr("名称") << tr("CDC") << tr("描述");
+			keys << tr("Name") << tr("CDC") << tr("Description");
 			values << QString::fromUtf8(dobj->name.c_str()) << QString::fromUtf8(dobj->cdc.c_str())
 				<< QString::fromUtf8(dobj->desc.c_str());
 			editable << true << false << true;
@@ -705,7 +705,7 @@ void MainWindow::populateProps(const QString& path)
 				const SclDaiSpec& spec = specs[ki];
 				const std::string* val = dobj->FindDaiVal(spec.path);
 				bool canEdit = daiTypeEditable(spec.bType);
-				keys << tr("DAI 路径") << tr("基本类型") << tr("FC") << tr("值");
+				keys << tr("DAI path") << tr("Basic type") << tr("FC") << tr("Value");
 				values << QString::fromUtf8(spec.path.c_str())
 					<< QString::fromUtf8(spec.bType.c_str())
 					<< QString::fromUtf8(spec.fc.c_str())
@@ -713,12 +713,12 @@ void MainWindow::populateProps(const QString& path)
 				editable << false << false << false << canEdit;
 				if (spec.bType == "Enum")
 				{
-					keys << tr("可选值");
+					keys << tr("Allowed values");
 					QStringList opts;
 					std::vector<std::pair<int, std::string> > evals = enumValsFor(spec.enumId);
 					for (size_t e = 0; e < evals.size(); ++e)
 						opts << QString::fromUtf8(evals[e].second.c_str());
-					values << (opts.isEmpty() ? tr("（未知枚举类型）") : opts.join(" / "));
+					values << (opts.isEmpty() ? tr("(unknown enum type)") : opts.join(" / "));
 					editable << false;
 				}
 			}
@@ -727,8 +727,8 @@ void MainWindow::populateProps(const QString& path)
 
 	else if (path == "comm")
 	{
-		keys << tr("说明");
-		values << tr("右键添加子网；子网下添加接入点，接入点下添加 GSE/SMV 通信地址");
+		keys << tr("Note");
+		values << tr("Right-click to add a subnetwork; add access points under it, then GSE/SMV addresses");
 		editable << false;
 	}
 	else if (parts.size() == 2 && parts[0] == "subnet")
@@ -736,7 +736,7 @@ void MainWindow::populateProps(const QString& path)
 		int si = parts[1].toInt();
 		if (si >= 0 && si < (int)m_model.subnets.size())
 		{
-			keys << tr("名称") << tr("类型");
+			keys << tr("Name") << tr("Type");
 			values << QString::fromUtf8(m_model.subnets[si].name.c_str())
 				<< QString::fromUtf8(m_model.subnets[si].type.c_str());
 			editable << true << true;
@@ -799,7 +799,7 @@ void MainWindow::populateProps(const QString& path)
 		if (ld && ln && di >= 0 && di < (int)ln->dataSets.size())
 		{
 			const SclDataSet& ds = ln->dataSets[di];
-			keys << tr("名称") << tr("描述") << tr("FCDA 数");
+			keys << tr("Name") << tr("Description") << tr("FCDA count");
 			values << QString::fromUtf8(ds.name.c_str()) << QString::fromUtf8(ds.desc.c_str())
 				   << QString::number((int)ds.fcdas.size());
 			editable << true << true << false;
@@ -812,8 +812,8 @@ void MainWindow::populateProps(const QString& path)
 		if (ln && parts[0] == "rpt" && idx >= 0 && idx < (int)ln->reports.size())
 		{
 			const SclReportControl& rc = ln->reports[idx];
-			keys << tr("名称") << tr("RptID") << tr("数据集") << tr("confRev") << tr("intgPd(ms)") << tr("bufTime")
-				 << tr("buffered") << tr("indexed") << tr("maxClients(-1 不输出)")
+			keys << tr("Name") << tr("RptID") << tr("DataSets") << tr("confRev") << tr("intgPd(ms)") << tr("bufTime")
+				 << tr("buffered") << tr("indexed") << tr("maxClients(-1 to omit)")
 				 << tr("TrgOps:dchg") << tr("TrgOps:qchg") << tr("TrgOps:dupd") << tr("TrgOps:period") << tr("TrgOps:gi")
 				 << tr("Opt:seqNum") << tr("Opt:timeStamp") << tr("Opt:dataSet") << tr("Opt:reasonCode")
 				 << tr("Opt:dataRef") << tr("Opt:bufOvfl") << tr("Opt:entryID") << tr("Opt:config");
@@ -834,7 +834,7 @@ void MainWindow::populateProps(const QString& path)
 		else if (ln && parts[0] == "gcb" && idx >= 0 && idx < (int)ln->gses.size())
 		{
 			const SclGseControl& gc = ln->gses[idx];
-			keys << tr("名称") << tr("appID") << tr("数据集") << tr("confRev") << tr("fixedOffs");
+			keys << tr("Name") << tr("appID") << tr("DataSets") << tr("confRev") << tr("fixedOffs");
 			values << QString::fromUtf8(gc.name.c_str()) << QString::fromUtf8(gc.appId.c_str())
 				<< QString::fromUtf8(gc.dataSet.c_str()) << QString::fromUtf8(gc.confRev.c_str())
 				<< (gc.fixedOffs ? "true" : "false");
@@ -843,7 +843,7 @@ void MainWindow::populateProps(const QString& path)
 		else if (ln && parts[0] == "smcb" && idx >= 0 && idx < (int)ln->smvs.size())
 		{
 			const SclSampledValueControl& sc = ln->smvs[idx];
-			keys << tr("名称") << tr("smvID") << tr("数据集") << tr("confRev")
+			keys << tr("Name") << tr("smvID") << tr("DataSets") << tr("confRev")
 				<< tr("smpRate") << tr("nofASDU") << tr("smpMod(S/P)");
 			values << QString::fromUtf8(sc.name.c_str()) << QString::fromUtf8(sc.smvId.c_str())
 				<< QString::fromUtf8(sc.dataSet.c_str()) << QString::fromUtf8(sc.confRev.c_str())
@@ -854,7 +854,7 @@ void MainWindow::populateProps(const QString& path)
 		else if (ln && parts[0] == "logcb" && idx >= 0 && idx < (int)ln->logs.size())
 		{
 			const SclLogControl& lc = ln->logs[idx];
-			keys << tr("名称") << tr("数据集") << tr("logName") << tr("intgPd(ms)")
+			keys << tr("Name") << tr("DataSets") << tr("logName") << tr("intgPd(ms)")
 				<< tr("TrgOps:dchg") << tr("TrgOps:qchg") << tr("TrgOps:dupd") << tr("TrgOps:period") << tr("TrgOps:gi");
 			values << QString::fromUtf8(lc.name.c_str()) << QString::fromUtf8(lc.dataSet.c_str())
 				<< QString::fromUtf8(lc.logName.c_str()) << QString::fromUtf8(lc.intgPd.c_str())
@@ -866,7 +866,7 @@ void MainWindow::populateProps(const QString& path)
 		else if (ln && parts[0] == "setcb" && idx >= 0 && idx < (int)ln->settings.size())
 		{
 			const SclSettingControl& sc = ln->settings[idx];
-			keys << tr("名称") << tr("数据集") << tr("numOfSG");
+			keys << tr("Name") << tr("DataSets") << tr("numOfSG");
 			values << QString::fromUtf8(sc.name.c_str()) << QString::fromUtf8(sc.dataSet.c_str())
 				<< QString::fromUtf8(sc.numOfSG.c_str());
 			for (int i = 0; i < keys.size(); ++i) editable << true;
@@ -874,8 +874,8 @@ void MainWindow::populateProps(const QString& path)
 	}
 	else if (parts.size() == 3 && (parts[0] == "ds-sec" || parts[0] == "cb-sec"))
 	{
-		keys << tr("说明");
-		values << tr("在逻辑节点右键添加");
+		keys << tr("Note");
+		values << tr("Right-click the logical node to add");
 		editable << false;
 	}
 
@@ -909,7 +909,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		case 0:
 			if (!validIdent(v))
 			{
-				QMessageBox::warning(this, tr("校验失败"), tr("IED 名称长度 1-64 位，由字母开头，仅可包含字母数字下划线"));
+				QMessageBox::warning(this, tr("Validation failed"), tr("IED name must be 1-64 chars, start with a letter, letters/digits/underscore only"));
 				populateProps(path);
 				return;
 			}
@@ -921,7 +921,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		case 4:
 			if (!validIdent(v))
 			{
-				QMessageBox::warning(this, tr("校验失败"), tr("AccessPoint 名称长度 1-64 位，由字母开头，仅可包含字母数字下划线"));
+				QMessageBox::warning(this, tr("Validation failed"), tr("AccessPoint name must be 1-64 chars, start with a letter, letters/digits/underscore only"));
 				populateProps(path);
 				return;
 			}
@@ -936,7 +936,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 			int port = value.toInt(&ok);
 			if (!ok || port <= 0 || port > 65535)
 			{
-				QMessageBox::warning(this, tr("校验失败"), tr("端口须为 1-65535 的整数"));
+				QMessageBox::warning(this, tr("Validation failed"), tr("Port must be an integer between 1 and 65535"));
 				populateProps(path);
 				return;
 			}
@@ -959,7 +959,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 				int t = value.toInt(&ok);
 				if (!ok || t < 0)
 				{
-					QMessageBox::warning(this, tr("校验失败"), tr("timeout 须为非负整数或留空"));
+					QMessageBox::warning(this, tr("Validation failed"), tr("Timeout must be a non-negative integer or empty"));
 					populateProps(path);
 					return;
 				}
@@ -969,13 +969,13 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		else if (row == 1)
 		{
 			QString vs = value.trimmed().toLower();
-			if (vs == "true" || vs == "1" || vs == tr("是"))
+			if (vs == "true" || vs == "1" || vs == tr("Yes"))
 				m_model.ied.authentication = true;
-			else if (vs == "false" || vs == "0" || vs == tr("否"))
+			else if (vs == "false" || vs == "0" || vs == tr("No"))
 				m_model.ied.authentication = false;
 			else
 			{
-				QMessageBox::warning(this, tr("校验失败"), tr("Authentication 请输入 true 或 false"));
+				QMessageBox::warning(this, tr("Validation failed"), tr("Authentication: enter true or false"));
 				populateProps(path);
 				return;
 			}
@@ -1004,7 +1004,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 			if (row != 0) return;
 			if (!validIdent(v) || apNameExists(v, -1))
 			{
-				QMessageBox::warning(this, tr("校验失败"), tr("名称须合法且不重复"));
+				QMessageBox::warning(this, tr("Validation failed"), tr("Name must be valid and unique"));
 				populateProps(path);
 				return;
 			}
@@ -1018,7 +1018,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 			{
 				if (!validIdent(v) || apNameExists(v, ei))
 				{
-					QMessageBox::warning(this, tr("校验失败"), tr("名称须合法且不重复"));
+					QMessageBox::warning(this, tr("Validation failed"), tr("Name must be valid and unique"));
 					populateProps(path);
 					return;
 				}
@@ -1028,7 +1028,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 			{
 				if (!v.empty() && apNameExists(v, ei))
 				{
-					QMessageBox::warning(this, tr("校验失败"), tr("ServerAt 须指向存在的接入点名称"));
+					QMessageBox::warning(this, tr("Validation failed"), tr("ServerAt must reference an existing access point name"));
 					populateProps(path);
 					return;
 				}
@@ -1046,7 +1046,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		{
 			if (!validIdent(v) || ldInstExists(v, li))
 			{
-				QMessageBox::warning(this, tr("校验失败"), tr("Instance 需合法且在文件内唯一"));
+				QMessageBox::warning(this, tr("Validation failed"), tr("Instance must be valid and unique in the file"));
 				populateProps(path);
 				return;
 			}
@@ -1070,7 +1070,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		{
 			if (!v.empty() && !validIdent(v))
 			{
-				QMessageBox::warning(this, tr("校验失败"), tr("Prefix 仅可包含字母数字下划线"));
+				QMessageBox::warning(this, tr("Validation failed"), tr("Prefix may contain letters/digits/underscore only"));
 				populateProps(path);
 				return;
 			}
@@ -1080,13 +1080,13 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		{
 			if (!allDigits(v))
 			{
-				QMessageBox::warning(this, tr("校验失败"), tr("Inst 须为非空数字"));
+				QMessageBox::warning(this, tr("Validation failed"), tr("Inst must be a non-empty number"));
 				populateProps(path);
 				return;
 			}
 			if (lnExistsInLd(*ld, ln->prefix, ln->lnClass, v, ni))
 			{
-				QMessageBox::warning(this, tr("校验失败"), tr("prefix 和 inst 组合后与现有 LN 重复，请修改"));
+				QMessageBox::warning(this, tr("Validation failed"), tr("prefix and inst combination duplicates an existing LN, please change"));
 				populateProps(path);
 				return;
 			}
@@ -1106,7 +1106,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 			if (ln == 0) return;
 			if (!validIdent(v))
 			{
-				QMessageBox::warning(this, tr("校验失败"), tr("DO 名称须为 1-64 位、字母开头、仅含字母数字下划线"));
+				QMessageBox::warning(this, tr("Validation failed"), tr("DO name must be 1-64 chars, start with a letter, letters/digits/underscore only"));
 				populateProps(path);
 				return;
 			}
@@ -1114,7 +1114,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 			{
 				if (ln->dos[i].name == v)
 				{
-					QMessageBox::warning(this, tr("校验失败"), tr("DO 名称在该逻辑节点内须唯一"));
+					QMessageBox::warning(this, tr("Validation failed"), tr("DO name must be unique within this logical node"));
 					populateProps(path);
 					return;
 				}
@@ -1135,9 +1135,9 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		QString normalized;
 		if (!daiValueValid(spec, value, normalized))
 		{
-			QMessageBox::warning(this, tr("校验失败"),
-				tr("值与类型 %1 不匹配%2").arg(QString::fromUtf8(spec.bType.c_str()))
-					.arg(spec.bType == "Enum" ? tr("，可选值见属性页说明") : QString()));
+			QMessageBox::warning(this, tr("Validation failed"),
+				tr("Value does not match type %1%2").arg(QString::fromUtf8(spec.bType.c_str()))
+					.arg(spec.bType == "Enum" ? tr(", see allowed values in the property page") : QString()));
 			populateProps(path);
 			return;
 		}
@@ -1151,7 +1151,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		{
 			if (value.trimmed().isEmpty())
 			{
-				QMessageBox::warning(this, tr("校验失败"), tr("子网名称不能为空"));
+				QMessageBox::warning(this, tr("Validation failed"), tr("SubNetwork name cannot be empty"));
 				populateProps(path);
 				return;
 			}
@@ -1196,7 +1196,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		{
 			if (!validIdent(v))
 			{
-				QMessageBox::warning(this, tr("校验失败"), tr("数据集名称须合法"));
+				QMessageBox::warning(this, tr("Validation failed"), tr("DataSet name must be valid"));
 				populateProps(path);
 				return;
 			}
@@ -1217,15 +1217,15 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 			switch (row)
 			{
 			case 0:
-				if (!validIdent(v)) { QMessageBox::warning(this, tr("校验失败"), tr("名称须合法")); populateProps(path); return; }
+				if (!validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("Name must be valid")); populateProps(path); return; }
 				rc.name = v; break;
 			case 1: rc.rptId = v; break;
 			case 2: rc.dataSet = v; break;
 			case 3: rc.confRev = v; break;
 			case 4: rc.intgPd = v; break;
 			case 5: rc.bufTime = v; break;
-			case 6: if (!parseBoolText(value, b)) { QMessageBox::warning(this, tr("校验失败"), tr("请输入 true 或 false")); populateProps(path); return; } rc.buffered = b; break;
-			case 7: if (!parseBoolText(value, b)) { QMessageBox::warning(this, tr("校验失败"), tr("请输入 true 或 false")); populateProps(path); return; } rc.indexed = b; break;
+			case 6: if (!parseBoolText(value, b)) { QMessageBox::warning(this, tr("Validation failed"), tr("Enter true or false")); populateProps(path); return; } rc.buffered = b; break;
+			case 7: if (!parseBoolText(value, b)) { QMessageBox::warning(this, tr("Validation failed"), tr("Enter true or false")); populateProps(path); return; } rc.indexed = b; break;
 			case 8: rc.maxClients = value.trimmed().isEmpty() ? -1 : value.toInt(); break;
 			case 9: if (parseBoolText(value, b)) { rc.trgOps.present = true; rc.trgOps.dchg = b; } break;
 			case 10: if (parseBoolText(value, b)) { rc.trgOps.present = true; rc.trgOps.qchg = b; } break;
@@ -1249,12 +1249,12 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 			switch (row)
 			{
 			case 0:
-				if (!validIdent(v)) { QMessageBox::warning(this, tr("校验失败"), tr("名称须合法")); populateProps(path); return; }
+				if (!validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("Name must be valid")); populateProps(path); return; }
 				gc.name = v; break;
 			case 1: gc.appId = v; break;
 			case 2: gc.dataSet = v; break;
 			case 3: gc.confRev = v; break;
-			case 4: { bool b = false; if (!parseBoolText(value, b)) { QMessageBox::warning(this, tr("校验失败"), tr("请输入 true 或 false")); populateProps(path); return; } gc.fixedOffs = b; break; }
+			case 4: { bool b = false; if (!parseBoolText(value, b)) { QMessageBox::warning(this, tr("Validation failed"), tr("Enter true or false")); populateProps(path); return; } gc.fixedOffs = b; break; }
 			default: return;
 			}
 		}
@@ -1264,7 +1264,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 			switch (row)
 			{
 			case 0:
-				if (!validIdent(v)) { QMessageBox::warning(this, tr("校验失败"), tr("名称须合法")); populateProps(path); return; }
+				if (!validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("Name must be valid")); populateProps(path); return; }
 				sc.name = v; break;
 			case 1: sc.smvId = v; break;
 			case 2: sc.dataSet = v; break;
@@ -1282,7 +1282,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 			switch (row)
 			{
 			case 0:
-				if (!validIdent(v)) { QMessageBox::warning(this, tr("校验失败"), tr("名称须合法")); populateProps(path); return; }
+				if (!validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("Name must be valid")); populateProps(path); return; }
 				lc.name = v; break;
 			case 1: lc.dataSet = v; break;
 			case 2: lc.logName = v; break;
@@ -1301,7 +1301,7 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 			switch (row)
 			{
 			case 0:
-				if (!validIdent(v)) { QMessageBox::warning(this, tr("校验失败"), tr("名称须合法")); populateProps(path); return; }
+				if (!validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("Name must be valid")); populateProps(path); return; }
 				sc.name = v; break;
 			case 1: sc.dataSet = v; break;
 			case 2: sc.numOfSG = v; break;
@@ -1336,28 +1336,28 @@ void MainWindow::validateAndLog(const std::string& sclText)
 	std::string temp = QDir::tempPath().toUtf8().constData();
 	temp += "/ieddesigner_validate.scl";
 	ValidateSclText(sclText, m_model.ied.name, temp, out);
-	log(tr("loader 试载：DI=%1 AI=%2 DO=%3 AO=%4 SG=%5 ied=%6")
+	log(tr("Loader check: DI=%1 AI=%2 DO=%3 AO=%4 SG=%5 ied=%6")
 		.arg((int)out.table.diRefs.size()).arg((int)out.table.aiRefs.size())
 		.arg((int)out.table.doRefs.size()).arg((int)out.table.aoRefs.size())
 		.arg((int)out.table.sgRefs.size())
 		.arg(QString::fromUtf8(out.detectedIed.c_str())));
 	if (out.sgQuirk)
-		log(tr("注意：loader 校验报 SG contains an invalid point（loader 已知缺陷，ucType=2 被 ValidateRefs 拒绝），点表仍已解析"));
+		log(tr("Note: loader reported SG contains an invalid point (known loader quirk, ucType=2 rejected by ValidateRefs); point table still parsed"));
 	else if (!out.loaderOk)
-		log(tr("loader 校验失败：%1").arg(QString::fromUtf8(out.errorText.c_str())));
+		log(tr("Loader check failed: %1").arg(QString::fromUtf8(out.errorText.c_str())));
 	else
-		log(tr("loader 校验通过"));
+		log(tr("Loader check passed"));
 }
 
 void MainWindow::onNewModel()
 {
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("新建模型"));
+	dlg.setWindowTitle(tr("New model"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* iedEdit = new QLineEdit("TEMPLATE", &dlg);
 	QLineEdit* apEdit = new QLineEdit("accessPoint1", &dlg);
 	QLineEdit* ldEdit = new QLineEdit("LD1", &dlg);
-	form->addRow(tr("IED 名称"), iedEdit);
+	form->addRow(tr("IED name"), iedEdit);
 	form->addRow(tr("AccessPoint"), apEdit);
 	form->addRow(tr("LDevice inst"), ldEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
@@ -1371,8 +1371,8 @@ void MainWindow::onNewModel()
 		!validIdent(apEdit->text().toUtf8().constData()) ||
 		!validIdent(ldEdit->text().toUtf8().constData()))
 	{
-		QMessageBox::warning(this, tr("校验失败"),
-			tr("IED 名称 / AccessPoint / LDevice inst 均须为 1-64 位、字母开头、仅含字母数字下划线"));
+		QMessageBox::warning(this, tr("Validation failed"),
+			tr("IED name / AccessPoint / LDevice inst must all be 1-64 chars, start with a letter, letters/digits/underscore only"));
 		return;
 	}
 
@@ -1383,7 +1383,7 @@ void MainWindow::onNewModel()
 	m_model.ied.lds[0].ldName = m_model.ied.lds[0].inst;
 	m_currentFile.clear();
 	buildTree();
-	log(tr("新建模型：IED=%1（含完整通信参数与 Services 声明）").arg(iedEdit->text()));
+	log(tr("New model: IED=%1 (with full communication parameters and Services declaration)").arg(iedEdit->text()));
 }
 
 void MainWindow::onTreeContextMenu(const QPoint& pos)
@@ -1431,94 +1431,94 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 
 	if (path == "ied")
 	{
-		addHistAct = menu.addAction(tr("添加修订历史"));
-		addApAct = menu.addAction(tr("添加接入点(AccessPoint)"));
-		refAct = menu.addAction(tr("获取引用"));
+		addHistAct = menu.addAction(tr("Add revision history"));
+		addApAct = menu.addAction(tr("Add AccessPoint"));
+		refAct = menu.addAction(tr("Get references"));
 		menu.addSeparator();
-		expandAct = menu.addAction(tr("展开全部"));
-		collapseAct = menu.addAction(tr("收起全部"));
+		expandAct = menu.addAction(tr("Expand all"));
+		collapseAct = menu.addAction(tr("Collapse all"));
 	}
 	else if (parts.size() == 2 && parts[0] == "hitem")
 	{
-		delHistAct = menu.addAction(tr("删除修订历史"));
+		delHistAct = menu.addAction(tr("Delete revision history"));
 	}
 	else if (parts.size() == 2 && parts[0] == "ap")
 	{
-		refAct = menu.addAction(tr("获取引用"));
+		refAct = menu.addAction(tr("Get references"));
 		if (parts[1].toInt() > 0)
-			delApAct = menu.addAction(tr("删除接入点"));
+			delApAct = menu.addAction(tr("Delete access point"));
 	}
 	else if (path == "server")
 	{
-		addLdAct = menu.addAction(tr("添加逻辑设备(LD)"));
+		addLdAct = menu.addAction(tr("Add logical device (LD)"));
 	}
 	else if (parts.size() == 2 && parts[0] == "ln0")
 	{
-		addDoAct = menu.addAction(tr("添加 DO"));
-		addDsAct = menu.addAction(tr("添加数据集"));
-		QMenu* cbMenu = menu.addMenu(tr("添加控制块"));
-		addRptAct = cbMenu->addAction(tr("报告控制块(ReportControl)"));
-		addGcbAct = cbMenu->addAction(tr("GOOSE 控制块(GSEControl)"));
-		addSmcbAct = cbMenu->addAction(tr("采样值控制块(SampledValueControl)"));
-		addLogcbAct = cbMenu->addAction(tr("日志控制块(LogControl)"));
-		addSetcbAct = cbMenu->addAction(tr("定值控制块(SettingControl)"));
+		addDoAct = menu.addAction(tr("Add DO"));
+		addDsAct = menu.addAction(tr("Add DataSet"));
+		QMenu* cbMenu = menu.addMenu(tr("Add control block"));
+		addRptAct = cbMenu->addAction(tr("Report control (ReportControl)"));
+		addGcbAct = cbMenu->addAction(tr("GOOSE control (GSEControl)"));
+		addSmcbAct = cbMenu->addAction(tr("Sampled value control (SampledValueControl)"));
+		addLogcbAct = cbMenu->addAction(tr("Log control (LogControl)"));
+		addSetcbAct = cbMenu->addAction(tr("Setting control (SettingControl)"));
 	}
 	else if (parts.size() == 2 && parts[0] == "ld")
 	{
-		addLdAct = menu.addAction(tr("添加逻辑节点"));
+		addLdAct = menu.addAction(tr("Add logical node"));
 		menu.addSeparator();
-		copyLdAct = menu.addAction(tr("复制逻辑设备"));
+		copyLdAct = menu.addAction(tr("Copy logical device"));
 		if (g_hasClipLd)
-			pasteLdAct = menu.addAction(tr("粘贴逻辑设备"));
-		delLdAct = menu.addAction(tr("删除逻辑设备"));
+			pasteLdAct = menu.addAction(tr("Paste logical device"));
+		delLdAct = menu.addAction(tr("Delete logical device"));
 		menu.addSeparator();
-		refAct = menu.addAction(tr("获取引用"));
+		refAct = menu.addAction(tr("Get references"));
 	}
 	else if (parts.size() == 3 && parts[0] == "ln")
 	{
-		addDoAct = menu.addAction(tr("添加 DO"));
+		addDoAct = menu.addAction(tr("Add DO"));
 		menu.addSeparator();
-		copyLnAct = menu.addAction(tr("复制逻辑节点"));
+		copyLnAct = menu.addAction(tr("Copy logical node"));
 		if (g_hasClipLn)
-			pasteLnAct = menu.addAction(tr("粘贴逻辑节点"));
-		delLnAct = menu.addAction(tr("删除逻辑节点"));
+			pasteLnAct = menu.addAction(tr("Paste logical node"));
+		delLnAct = menu.addAction(tr("Delete logical node"));
 		menu.addSeparator();
-		refAct = menu.addAction(tr("获取引用"));
+		refAct = menu.addAction(tr("Get references"));
 	}
 	else if (parts.size() == 4 && parts[0] == "do")
 	{
-		editDoAct = menu.addAction(tr("编辑 DO 名称"));
-		delDoAct = menu.addAction(tr("删除 DO"));
+		editDoAct = menu.addAction(tr("Rename DO"));
+		delDoAct = menu.addAction(tr("Delete DO"));
 		menu.addSeparator();
-		refAct = menu.addAction(tr("获取引用"));
+		refAct = menu.addAction(tr("Get references"));
 	}
 	else if (parts.size() == 4 && parts[0] == "ds")
 	{
-		editDsAct = menu.addAction(tr("编辑 FCDA 成员"));
-		delDsAct = menu.addAction(tr("删除数据集"));
+		editDsAct = menu.addAction(tr("Edit FCDA members"));
+		delDsAct = menu.addAction(tr("Delete DataSet"));
 	}
 	else if (parts.size() == 4 && (parts[0] == "rpt" || parts[0] == "gcb" || parts[0] == "smcb" || parts[0] == "logcb" || parts[0] == "setcb"))
 	{
-		delCbAct = menu.addAction(tr("删除控制块"));
+		delCbAct = menu.addAction(tr("Delete control block"));
 	}
 	else if (path == "comm")
 	{
-		addSubAct = menu.addAction(tr("添加子网(SubNetwork)"));
+		addSubAct = menu.addAction(tr("Add SubNetwork"));
 	}
 	else if (parts.size() == 2 && parts[0] == "subnet")
 	{
-		addCapAct = menu.addAction(tr("添加接入点(ConnectedAP)"));
-		delSubAct = menu.addAction(tr("删除子网"));
+		addCapAct = menu.addAction(tr("Add ConnectedAP"));
+		delSubAct = menu.addAction(tr("Delete SubNetwork"));
 	}
 	else if (parts.size() == 3 && parts[0] == "cap")
 	{
-		addGseAddrAct = menu.addAction(tr("添加 GSE 地址"));
-		addSmvAddrAct = menu.addAction(tr("添加 SMV 地址"));
-		delCapAct = menu.addAction(tr("删除接入点"));
+		addGseAddrAct = menu.addAction(tr("Add GSE address"));
+		addSmvAddrAct = menu.addAction(tr("Add SMV address"));
+		delCapAct = menu.addAction(tr("Delete access point"));
 	}
 	else if (parts.size() == 4 && (parts[0] == "gse" || parts[0] == "smv"))
 	{
-		delAddrAct = menu.addAction(tr("删除通信地址"));
+		delAddrAct = menu.addAction(tr("Delete communication address"));
 	}
 
 	QAction* picked = menu.exec(m_tree->mapToGlobal(pos));
@@ -1545,7 +1545,7 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 		QString name = QString::fromUtf8(ld->lns[ni].Name().c_str());
 		ld->lns.erase(ld->lns.begin() + ni);
 		buildTree();
-		log(tr("删除逻辑节点 %1").arg(name));
+		log(tr("Delete logical node %1").arg(name));
 		return;
 	}
 	if (picked == refAct) { showReference(path); return; }
@@ -1590,7 +1590,7 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 		if (ld == 0)
 			return;
 		QDialog dlg(this);
-		dlg.setWindowTitle(tr("添加逻辑节点"));
+		dlg.setWindowTitle(tr("Add logical node"));
 		QVBoxLayout* vbox = new QVBoxLayout(&dlg);
 		QListWidget* list = new QListWidget(&dlg);
 		const std::vector<SclLnT>& table = SclTemplates::LnTypes();
@@ -1626,17 +1626,17 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 			std::string prefix = prefixEdit->text().toUtf8().constData();
 			if (!allDigits(inst))
 			{
-				QMessageBox::warning(&dlg, tr("校验失败"), tr("Inst 须为非空数字"));
+				QMessageBox::warning(&dlg, tr("Validation failed"), tr("Inst must be a non-empty number"));
 				continue;
 			}
 			if (!prefix.empty() && !validIdent(prefix))
 			{
-				QMessageBox::warning(&dlg, tr("校验失败"), tr("Prefix 仅可包含字母数字下划线"));
+				QMessageBox::warning(&dlg, tr("Validation failed"), tr("Prefix may contain letters/digits/underscore only"));
 				continue;
 			}
 			if (lnExistsInLd(*ld, prefix, lnClass, inst, -1))
 			{
-				QMessageBox::warning(&dlg, tr("校验失败"), tr("prefix 和 inst 组合后与模型文件中现有 LN 重复，请修改"));
+				QMessageBox::warning(&dlg, tr("Validation failed"), tr("prefix and inst combination duplicates an existing LN in the model file, please change"));
 				continue;
 			}
 			SclLn ln = SclTemplates::MakeLn(lnClass);
@@ -1644,7 +1644,7 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 			ln.prefix = prefix;
 			ld->lns.push_back(ln);
 			buildTree();
-			log(tr("添加逻辑节点 %1%2 到 %3").arg(QString::fromUtf8(lnClass.c_str())).arg(instEdit->text()).arg(QString::fromUtf8(ld->inst.c_str())));
+			log(tr("Add logical node %1%2 to %3").arg(QString::fromUtf8(lnClass.c_str())).arg(instEdit->text()).arg(QString::fromUtf8(ld->inst.c_str())));
 			return;
 		}
 	}
@@ -1653,18 +1653,18 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 void MainWindow::addHistoryItem()
 {
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("添加修订历史"));
+	dlg.setWindowTitle(tr("Add revision history"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* versionEdit = new QLineEdit("1.0", &dlg);
 	QLineEdit* whatEdit = new QLineEdit(&dlg);
 	QLineEdit* whoEdit = new QLineEdit(&dlg);
 	QLineEdit* whenEdit = new QLineEdit(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"), &dlg);
 	QLineEdit* whyEdit = new QLineEdit(&dlg);
-	form->addRow(tr("版本"), versionEdit);
-	form->addRow(tr("内容"), whatEdit);
-	form->addRow(tr("执行人"), whoEdit);
-	form->addRow(tr("时间"), whenEdit);
-	form->addRow(tr("原因"), whyEdit);
+	form->addRow(tr("Version"), versionEdit);
+	form->addRow(tr("What"), whatEdit);
+	form->addRow(tr("Who"), whoEdit);
+	form->addRow(tr("When"), whenEdit);
+	form->addRow(tr("Why"), whyEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
 	connect(box, SIGNAL(accepted()), &dlg, SLOT(accept()));
@@ -1680,35 +1680,35 @@ void MainWindow::addHistoryItem()
 	item.why = whyEdit->text().toUtf8().constData();
 	m_model.history.push_back(item);
 	buildTree();
-	log(tr("添加修订历史：%1").arg(QString::fromUtf8(item.what.c_str())));
+	log(tr("Revision history added: %1").arg(QString::fromUtf8(item.what.c_str())));
 }
 
 void MainWindow::deleteHistoryItem(int idx)
 {
 	if (idx < 0 || idx >= (int)m_model.history.size())
 		return;
-	if (QMessageBox::question(this, tr("确认"), tr("确认删除该修订历史？")) != QMessageBox::Yes)
+	if (QMessageBox::question(this, tr("Confirm"), tr("Delete this revision history entry?")) != QMessageBox::Yes)
 		return;
 	m_model.history.erase(m_model.history.begin() + idx);
 	buildTree();
-	log(tr("删除修订历史 H%1").arg(idx + 1));
+	log(tr("Delete revision history H%1").arg(idx + 1));
 }
 
 void MainWindow::addAccessPoint()
 {
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("添加接入点(AccessPoint)"));
+	dlg.setWindowTitle(tr("Add AccessPoint"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* nameEdit = new QLineEdit("accessPoint2", &dlg);
 	QComboBox* serverAtCombo = new QComboBox(&dlg);
-	serverAtCombo->addItem(tr("无（独立接入点）"), QString());
-	serverAtCombo->addItem(tr("主接入点：%1").arg(QString::fromUtf8(m_model.ied.apName.c_str())),
+	serverAtCombo->addItem(tr("None (standalone access point)"), QString());
+	serverAtCombo->addItem(tr("Primary access point: %1").arg(QString::fromUtf8(m_model.ied.apName.c_str())),
 		QString::fromUtf8(m_model.ied.apName.c_str()));
 	for (size_t i = 0; i < m_model.ied.extraAps.size(); ++i)
 		serverAtCombo->addItem(QString::fromUtf8(m_model.ied.extraAps[i].name.c_str()),
 			QString::fromUtf8(m_model.ied.extraAps[i].name.c_str()));
-	form->addRow(tr("名称"), nameEdit);
-	form->addRow(tr("ServerAt 指向"), serverAtCombo);
+	form->addRow(tr("Name"), nameEdit);
+	form->addRow(tr("ServerAt target"), serverAtCombo);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
 	connect(box, SIGNAL(accepted()), &dlg, SLOT(accept()));
@@ -1719,7 +1719,7 @@ void MainWindow::addAccessPoint()
 	std::string name = nameEdit->text().toUtf8().constData();
 	if (!validIdent(name) || apNameExists(name, -1))
 	{
-		QMessageBox::warning(this, tr("校验失败"), tr("名称须合法且不重复"));
+		QMessageBox::warning(this, tr("Validation failed"), tr("Name must be valid and unique"));
 		return;
 	}
 	SclAccessPoint ap;
@@ -1727,32 +1727,32 @@ void MainWindow::addAccessPoint()
 	ap.serverAt = serverAtCombo->currentData().toString().toUtf8().constData();
 	m_model.ied.extraAps.push_back(ap);
 	buildTree();
-	log(tr("添加接入点 %1%2").arg(QString::fromUtf8(name.c_str()))
-		.arg(ap.serverAt.empty() ? tr("（独立）") : tr("（ServerAt -> %1）").arg(QString::fromUtf8(ap.serverAt.c_str()))));
+	log(tr("Add access point %1%2").arg(QString::fromUtf8(name.c_str()))
+		.arg(ap.serverAt.empty() ? tr(" (standalone)") : tr("（ServerAt -> %1）").arg(QString::fromUtf8(ap.serverAt.c_str()))));
 }
 
 void MainWindow::deleteAccessPoint(int extraIdx)
 {
 	if (extraIdx < 0 || extraIdx >= (int)m_model.ied.extraAps.size())
 		return;
-	if (QMessageBox::question(this, tr("确认"),
-		tr("确认删除接入点 %1？").arg(QString::fromUtf8(m_model.ied.extraAps[extraIdx].name.c_str()))) != QMessageBox::Yes)
+	if (QMessageBox::question(this, tr("Confirm"),
+		tr("Delete access point %1?").arg(QString::fromUtf8(m_model.ied.extraAps[extraIdx].name.c_str()))) != QMessageBox::Yes)
 		return;
 	QString name = QString::fromUtf8(m_model.ied.extraAps[extraIdx].name.c_str());
 	m_model.ied.extraAps.erase(m_model.ied.extraAps.begin() + extraIdx);
 	buildTree();
-	log(tr("删除接入点 %1").arg(name));
+	log(tr("Delete access point %1").arg(name));
 }
 
 void MainWindow::addLDevice()
 {
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("添加逻辑设备(LD)"));
+	dlg.setWindowTitle(tr("Add logical device (LD)"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* instEdit = new QLineEdit(QString("LD%1").arg((int)m_model.ied.lds.size() + 1), &dlg);
 	QLineEdit* descEdit = new QLineEdit(&dlg);
 	form->addRow(tr("Instance"), instEdit);
-	form->addRow(tr("描述"), descEdit);
+	form->addRow(tr("Description"), descEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
 	connect(box, SIGNAL(accepted()), &dlg, SLOT(accept()));
@@ -1763,7 +1763,7 @@ void MainWindow::addLDevice()
 	std::string inst = instEdit->text().toUtf8().constData();
 	if (!validIdent(inst) || ldInstExists(inst, -1))
 	{
-		QMessageBox::warning(this, tr("校验失败"), tr("Instance 需合法且在文件内唯一"));
+		QMessageBox::warning(this, tr("Validation failed"), tr("Instance must be valid and unique in the file"));
 		return;
 	}
 	SclLDevice ld;
@@ -1773,7 +1773,7 @@ void MainWindow::addLDevice()
 	ld.ln0 = SclTemplates::MakeLn("LLN0");
 	m_model.ied.lds.push_back(ld);
 	buildTree();
-	log(tr("添加逻辑设备 %1").arg(QString::fromUtf8(inst.c_str())));
+	log(tr("Add logical device %1").arg(QString::fromUtf8(inst.c_str())));
 }
 
 void MainWindow::deleteLDevice(int li)
@@ -1781,13 +1781,13 @@ void MainWindow::deleteLDevice(int li)
 	SclLDevice* ld = ldAt(li);
 	if (ld == 0)
 		return;
-	if (QMessageBox::question(this, tr("确认"),
-		tr("确认删除逻辑设备 %1 及其下全部逻辑节点？").arg(QString::fromUtf8(ld->inst.c_str()))) != QMessageBox::Yes)
+	if (QMessageBox::question(this, tr("Confirm"),
+		tr("Delete logical device %1 and all its logical nodes?").arg(QString::fromUtf8(ld->inst.c_str()))) != QMessageBox::Yes)
 		return;
 	QString name = QString::fromUtf8(ld->inst.c_str());
 	m_model.ied.lds.erase(m_model.ied.lds.begin() + li);
 	buildTree();
-	log(tr("删除逻辑设备 %1").arg(name));
+	log(tr("Delete logical device %1").arg(name));
 }
 
 void MainWindow::copyLDevice(int li)
@@ -1797,7 +1797,7 @@ void MainWindow::copyLDevice(int li)
 		return;
 	g_clipLd = *ld;
 	g_hasClipLd = true;
-	log(tr("已复制逻辑设备 %1，可在 Server 节点粘贴").arg(QString::fromUtf8(ld->inst.c_str())));
+	log(tr("Logical device %1 copied; paste it on the Server node").arg(QString::fromUtf8(ld->inst.c_str())));
 }
 
 void MainWindow::pasteLDevice()
@@ -1812,7 +1812,7 @@ void MainWindow::pasteLDevice()
 	ld.ldName = ld.inst;
 	m_model.ied.lds.push_back(ld);
 	buildTree();
-	log(tr("粘贴逻辑设备 %1（源：%2）").arg(QString::fromUtf8(ld.inst.c_str())).arg(QString::fromUtf8(base.c_str())));
+	log(tr("Paste logical device %1 (source: %2)").arg(QString::fromUtf8(ld.inst.c_str())).arg(QString::fromUtf8(base.c_str())));
 }
 
 void MainWindow::copyLogicNode(int li, int ni)
@@ -1822,7 +1822,7 @@ void MainWindow::copyLogicNode(int li, int ni)
 		return;
 	g_clipLn = ld->lns[ni];
 	g_hasClipLn = true;
-	log(tr("已复制逻辑节点 %1，可在 LDevice 节点粘贴").arg(QString::fromUtf8(g_clipLn.Name().c_str())));
+	log(tr("Logical node %1 copied; paste it on an LDevice node").arg(QString::fromUtf8(g_clipLn.Name().c_str())));
 }
 
 void MainWindow::pasteLogicNode(int li)
@@ -1837,7 +1837,7 @@ void MainWindow::pasteLogicNode(int li)
 		ln.inst = base + "_" + std::to_string(n++);
 	ld->lns.push_back(ln);
 	buildTree();
-	log(tr("粘贴逻辑节点 %1 到 %2").arg(QString::fromUtf8(ln.Name().c_str())).arg(QString::fromUtf8(ld->inst.c_str())));
+	log(tr("Paste logical node %1 to %2").arg(QString::fromUtf8(ln.Name().c_str())).arg(QString::fromUtf8(ld->inst.c_str())));
 }
 
 void MainWindow::showReference(const QString& path)
@@ -1893,7 +1893,7 @@ void MainWindow::showReference(const QString& path)
 	}
 
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("引用信息"));
+	dlg.setWindowTitle(tr("Reference info"));
 	dlg.resize(620, 180);
 	QVBoxLayout* vbox = new QVBoxLayout(&dlg);
 	QFormLayout* form = new QFormLayout;
@@ -1901,23 +1901,23 @@ void MainWindow::showReference(const QString& path)
 	QLineEdit* mmsEdit = new QLineEdit(QString::fromUtf8(mmsRef.c_str()), &dlg);
 	iecEdit->setReadOnly(true);
 	mmsEdit->setReadOnly(true);
-	form->addRow(tr("IEC61850 引用"), iecEdit);
-	form->addRow(tr("MMS 引用"), mmsEdit);
+	form->addRow(tr("IEC61850 reference"), iecEdit);
+	form->addRow(tr("MMS reference"), mmsEdit);
 	vbox->addLayout(form);
 	QHBoxLayout* btns = new QHBoxLayout;
-	QPushButton* copyIec = new QPushButton(tr("复制 IEC61850 引用"), &dlg);
-	QPushButton* copyMms = new QPushButton(tr("复制 MMS 引用"), &dlg);
+	QPushButton* copyIec = new QPushButton(tr("Copy IEC61850 reference"), &dlg);
+	QPushButton* copyMms = new QPushButton(tr("Copy MMS reference"), &dlg);
 	btns->addWidget(copyIec);
 	btns->addWidget(copyMms);
 	btns->addStretch(1);
 	vbox->addLayout(btns);
 	connect(copyIec, &QPushButton::clicked, this, [this, iecEdit]() {
 		QApplication::clipboard()->setText(iecEdit->text());
-		log(tr("已复制 IEC61850 引用到剪贴板"));
+		log(tr("IEC61850 reference copied to clipboard"));
 	});
 	connect(copyMms, &QPushButton::clicked, this, [this, mmsEdit]() {
 		QApplication::clipboard()->setText(mmsEdit->text());
-		log(tr("已复制 MMS 引用到剪贴板"));
+		log(tr("MMS reference copied to clipboard"));
 	});
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Close, Qt::Horizontal, &dlg);
 	connect(box, SIGNAL(rejected()), &dlg, SLOT(reject()));
@@ -1929,7 +1929,7 @@ void MainWindow::onXmlPreview()
 {
 	std::string text = SclWriter::BuildSclText(m_model, true);
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("XML 源码预览"));
+	dlg.setWindowTitle(tr("XML source preview"));
 	dlg.resize(920, 700);
 	QVBoxLayout* vbox = new QVBoxLayout(&dlg);
 	QPlainTextEdit* edit = new QPlainTextEdit(&dlg);
@@ -1947,7 +1947,7 @@ void MainWindow::onXmlPreview()
 
 void MainWindow::onSaveCidAs()
 {
-	QString path = QFileDialog::getSaveFileName(this, tr("保存CID"),
+	QString path = QFileDialog::getSaveFileName(this, tr("Save CID"),
 		QDir::currentPath() + "/model.cid", tr("CID (*.cid)"));
 	if (path.isEmpty())
 		return;
@@ -1966,48 +1966,48 @@ void MainWindow::onSaveCid()
 	std::string path = m_currentFile.toUtf8().constData();
 	if (!SclWriter::WriteCid(m_model, path, err))
 	{
-		QMessageBox::warning(this, tr("保存失败"), QString::fromUtf8(err.c_str()));
+		QMessageBox::warning(this, tr("Save failed"), QString::fromUtf8(err.c_str()));
 		return;
 	}
-	log(tr("已保存 CID：%1").arg(m_currentFile));
+	log(tr("CID saved: %1").arg(m_currentFile));
 	validateAndLog(SclWriter::BuildSclText(m_model, true));
 }
 
 void MainWindow::onExportIcd()
 {
-	QString path = QFileDialog::getSaveFileName(this, tr("导出ICD文件"),
+	QString path = QFileDialog::getSaveFileName(this, tr("Export ICD file"),
 		QDir::currentPath() + "/model.icd", tr("ICD (*.icd)"));
 	if (path.isEmpty())
 		return;
 	std::string err;
 	if (!SclWriter::WriteIcd(m_model, path.toUtf8().constData(), err))
 	{
-		QMessageBox::warning(this, tr("导出失败"), QString::fromUtf8(err.c_str()));
+		QMessageBox::warning(this, tr("Export failed"), QString::fromUtf8(err.c_str()));
 		return;
 	}
-	log(tr("已导出 ICD：%1").arg(path));
+	log(tr("ICD exported: %1").arg(path));
 	validateAndLog(SclWriter::BuildSclText(m_model, false));
 }
 
 void MainWindow::onExportCid()
 {
-	QString path = QFileDialog::getSaveFileName(this, tr("导出CID文件"),
+	QString path = QFileDialog::getSaveFileName(this, tr("Export CID file"),
 		QDir::currentPath() + "/model.cid", tr("CID (*.cid)"));
 	if (path.isEmpty())
 		return;
 	std::string err;
 	if (!SclWriter::WriteCid(m_model, path.toUtf8().constData(), err))
 	{
-		QMessageBox::warning(this, tr("导出失败"), QString::fromUtf8(err.c_str()));
+		QMessageBox::warning(this, tr("Export failed"), QString::fromUtf8(err.c_str()));
 		return;
 	}
-	log(tr("已导出 CID：%1").arg(path));
+	log(tr("CID exported: %1").arg(path));
 	validateAndLog(SclWriter::BuildSclText(m_model, true));
 }
 
 void MainWindow::onExportCsv()
 {
-	QString path = QFileDialog::getSaveFileName(this, tr("导出CSV点表"),
+	QString path = QFileDialog::getSaveFileName(this, tr("Export CSV point table"),
 		QDir::currentPath() + "/model_points.csv", tr("CSV (*.csv)"));
 	if (path.isEmpty())
 		return;
@@ -2018,17 +2018,17 @@ void MainWindow::onExportCsv()
 	ValidateSclText(sclText, m_model.ied.name, temp, out);
 	if (!out.refsParsed)
 	{
-		QMessageBox::warning(this, tr("导出失败"),
-			tr("loader 未能解析出任何点：%1").arg(QString::fromUtf8(out.errorText.c_str())));
+		QMessageBox::warning(this, tr("Export failed"),
+			tr("Loader parsed no points: %1").arg(QString::fromUtf8(out.errorText.c_str())));
 		return;
 	}
 	std::string err;
 	if (!CsvWriter::WriteCsv(m_model, out.table, path.toUtf8().constData(), err))
 	{
-		QMessageBox::warning(this, tr("导出失败"), QString::fromUtf8(err.c_str()));
+		QMessageBox::warning(this, tr("Export failed"), QString::fromUtf8(err.c_str()));
 		return;
 	}
-	log(tr("已导出 CSV：%1（DI=%2 AI=%3 DO=%4 AO=%5 SG=%6）").arg(path)
+	log(tr("CSV exported: %1 (DI=%2 AI=%3 DO=%4 AO=%5 SG=%6)").arg(path)
 		.arg((int)out.table.diRefs.size()).arg((int)out.table.aiRefs.size())
 		.arg((int)out.table.doRefs.size()).arg((int)out.table.aoRefs.size())
 		.arg((int)out.table.sgRefs.size()));
@@ -2036,7 +2036,7 @@ void MainWindow::onExportCsv()
 
 void MainWindow::onOpenScl()
 {
-	QString path = QFileDialog::getOpenFileName(this, tr("打开SCL模型"),
+	QString path = QFileDialog::getOpenFileName(this, tr("Open SCL model"),
 		QDir::currentPath(), tr("SCL (*.icd *.cid *.scd);;All files (*.*)"));
 	if (path.isEmpty())
 		return;
@@ -2049,11 +2049,11 @@ void MainWindow::openSclPath(const QString& path)
 		return;
 	if (!QFile::exists(path))
 	{
-		QMessageBox::warning(this, tr("打开失败"), tr("文件不存在：%1").arg(path));
+		QMessageBox::warning(this, tr("Open failed"), tr("File does not exist: %1").arg(path));
 		return;
 	}
 	setBusy(true);
-	log(tr("正在打开 %1 …").arg(path));
+	log(tr("Opening %1 ...").arg(path));
 
 	QFutureWatcher<SclIedListResult>* listWatcher = new QFutureWatcher<SclIedListResult>(this);
 	connect(listWatcher, &QFutureWatcher<SclIedListResult>::finished, this,
@@ -2063,7 +2063,7 @@ void MainWindow::openSclPath(const QString& path)
 		if (r.ieds.empty())
 		{
 			setBusy(false);
-			QMessageBox::warning(this, tr("打开失败"), QString::fromUtf8(r.err.c_str()));
+			QMessageBox::warning(this, tr("Open failed"), QString::fromUtf8(r.err.c_str()));
 			return;
 		}
 		QString pick;
@@ -2072,8 +2072,8 @@ void MainWindow::openSclPath(const QString& path)
 			QStringList items;
 			for (size_t i = 0; i < r.ieds.size(); ++i)
 				items << QString::fromUtf8(r.ieds[i].c_str());
-			pick = QInputDialog::getItem(this, tr("选择IED"),
-				tr("文件含多个IED，选择要打开的："), items, 0, false);
+			pick = QInputDialog::getItem(this, tr("Select IED"),
+				tr("The file contains multiple IEDs, select one to open:"), items, 0, false);
 			if (pick.isEmpty())
 			{
 				setBusy(false);
@@ -2093,7 +2093,7 @@ void MainWindow::openSclPath(const QString& path)
 			setBusy(false);
 			if (!r2.ok)
 			{
-				QMessageBox::warning(this, tr("打开失败"), QString::fromUtf8(r2.err.c_str()));
+				QMessageBox::warning(this, tr("Open failed"), QString::fromUtf8(r2.err.c_str()));
 				return;
 			}
 			m_model = r2.model;
@@ -2110,7 +2110,7 @@ void MainWindow::openSclPath(const QString& path)
 				for (size_t ni = 0; ni < ld.lns.size(); ++ni)
 					doCount += (int)ld.lns[ni].dos.size();
 			}
-			log(tr("已打开 %1：IED=%2 LD=%3 LN=%4 DO=%5").arg(path)
+			log(tr("Opened %1: IED=%2 LD=%3 LN=%4 DO=%5").arg(path)
 				.arg(pick)
 				.arg((int)m_model.ied.lds.size()).arg(lnCount).arg(doCount));
 		});
@@ -2132,7 +2132,7 @@ void MainWindow::openSclPath(const QString& path)
 
 void MainWindow::onImportJson()
 {
-	QString path = QFileDialog::getOpenFileName(this, tr("导入在线JSON"),
+	QString path = QFileDialog::getOpenFileName(this, tr("Import online JSON"),
 		QDir::currentPath(), tr("JSON (*.json);;All files (*.*)"));
 	if (path.isEmpty())
 		return;
@@ -2141,7 +2141,7 @@ void MainWindow::onImportJson()
 	if (!JsonModel::ReadOnlineJsonFile(path.toUtf8().constData(), "",
 		m_model.ied.ip, m_model.ied.port, loaded, err))
 	{
-		QMessageBox::warning(this, tr("导入失败"), QString::fromUtf8(err.c_str()));
+		QMessageBox::warning(this, tr("Import failed"), QString::fromUtf8(err.c_str()));
 		return;
 	}
 	m_model = loaded;
@@ -2157,7 +2157,7 @@ void MainWindow::onImportJson()
 		for (size_t ni = 0; ni < ld.lns.size(); ++ni)
 			doCount += (int)ld.lns[ni].dos.size();
 	}
-	log(tr("已导入在线JSON %1：IED=%2 LD=%3 LN=%4 DO=%5").arg(path)
+	log(tr("Online JSON imported %1: IED=%2 LD=%3 LN=%4 DO=%5").arg(path)
 		.arg(QString::fromUtf8(m_model.ied.name.c_str()))
 		.arg((int)m_model.ied.lds.size()).arg(lnCount).arg(doCount));
 }
@@ -2167,14 +2167,14 @@ void MainWindow::onOnlineRead()
 	if (m_browseThread != 0)
 		return;
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("在线读取IED"));
+	dlg.setWindowTitle(tr("Read IED online"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* ipEdit = new QLineEdit(m_model.ied.ip.c_str(), &dlg);
 	QLineEdit* portEdit = new QLineEdit(QString::number(m_model.ied.port), &dlg);
 	QLineEdit* iedEdit = new QLineEdit("simpleIO", &dlg);
 	form->addRow(tr("IP"), ipEdit);
-	form->addRow(tr("端口"), portEdit);
-	form->addRow(tr("IED名(可空)"), iedEdit);
+	form->addRow(tr("Port"), portEdit);
+	form->addRow(tr("IED name (optional)"), iedEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
 	connect(box, SIGNAL(accepted()), &dlg, SLOT(accept()));
@@ -2186,7 +2186,7 @@ void MainWindow::onOnlineRead()
 	connect(m_browseThread, SIGNAL(finished()), this, SLOT(onOnlineFinished()));
 	m_onlineAct->setEnabled(false);
 	m_jsonAct->setEnabled(false);
-	log(tr("开始在线读取 %1:%2 …").arg(ipEdit->text()).arg(portEdit->text()));
+	log(tr("Starting online read %1:%2 ...").arg(ipEdit->text()).arg(portEdit->text()));
 	m_browseThread->start();
 }
 
@@ -2198,7 +2198,7 @@ void MainWindow::onOnlineFinished()
 	m_jsonAct->setEnabled(true);
 	if (!t->m_ok)
 	{
-		log(tr("在线读取失败：%1").arg(t->m_error));
+		log(tr("Online read failed: %1").arg(t->m_error));
 		t->deleteLater();
 		return;
 	}
@@ -2215,7 +2215,7 @@ void MainWindow::onOnlineFinished()
 		for (size_t ni = 0; ni < ld.lns.size(); ++ni)
 			doCount += (int)ld.lns[ni].dos.size();
 	}
-	log(tr("在线读取完成：IED=%1 LD=%2 LN=%3 DO=%4").arg(QString::fromUtf8(m_model.ied.name.c_str()))
+	log(tr("Online read finished: IED=%1 LD=%2 LN=%3 DO=%4").arg(QString::fromUtf8(m_model.ied.name.c_str()))
 		.arg((int)m_model.ied.lds.size()).arg(lnCount).arg(doCount));
 	t->deleteLater();
 }
@@ -2225,23 +2225,23 @@ void MainWindow::onOnlineFinished()
 bool MainWindow::parseBoolText(const QString& text, bool& out) const
 {
 	QString vs = text.trimmed().toLower();
-	if (vs == "true" || vs == "1" || vs == tr("是")) { out = true; return true; }
-	if (vs == "false" || vs == "0" || vs == tr("否")) { out = false; return true; }
+	if (vs == "true" || vs == "1" || vs == tr("Yes")) { out = true; return true; }
+	if (vs == "false" || vs == "0" || vs == tr("No")) { out = false; return true; }
 	return false;
 }
 
 void MainWindow::addSubNet()
 {
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("添加子网(SubNetwork)"));
+	dlg.setWindowTitle(tr("Add SubNetwork"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* nameEdit = new QLineEdit(QString("SubNetwork%1").arg((int)m_model.subnets.size() + 1), &dlg);
 	QComboBox* typeCombo = new QComboBox(&dlg);
 	typeCombo->addItem("8-MMS");
 	typeCombo->addItem("4-StationBus");
 	typeCombo->addItem("10-UDP");
-	form->addRow(tr("名称"), nameEdit);
-	form->addRow(tr("类型"), typeCombo);
+	form->addRow(tr("Name"), nameEdit);
+	form->addRow(tr("Type"), typeCombo);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
 	connect(box, SIGNAL(accepted()), &dlg, SLOT(accept()));
@@ -2253,20 +2253,20 @@ void MainWindow::addSubNet()
 	sn.type = typeCombo->currentText().toUtf8().constData();
 	m_model.subnets.push_back(sn);
 	buildTree();
-	log(tr("添加子网 %1").arg(nameEdit->text()));
+	log(tr("Add SubNetwork %1").arg(nameEdit->text()));
 }
 
 void MainWindow::deleteSubNet(int idx)
 {
 	if (idx < 0 || idx >= (int)m_model.subnets.size())
 		return;
-	if (QMessageBox::question(this, tr("确认"),
-		tr("确认删除子网 %1 及其下全部接入点？").arg(QString::fromUtf8(m_model.subnets[idx].name.c_str()))) != QMessageBox::Yes)
+	if (QMessageBox::question(this, tr("Confirm"),
+		tr("Delete SubNetwork %1 and all its access points?").arg(QString::fromUtf8(m_model.subnets[idx].name.c_str()))) != QMessageBox::Yes)
 		return;
 	QString name = QString::fromUtf8(m_model.subnets[idx].name.c_str());
 	m_model.subnets.erase(m_model.subnets.begin() + idx);
 	buildTree();
-	log(tr("删除子网 %1").arg(name));
+	log(tr("Delete SubNetwork %1").arg(name));
 }
 
 void MainWindow::addConnectedAP(int subnetIdx)
@@ -2274,7 +2274,7 @@ void MainWindow::addConnectedAP(int subnetIdx)
 	if (subnetIdx < 0 || subnetIdx >= (int)m_model.subnets.size())
 		return;
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("添加接入点(ConnectedAP)"));
+	dlg.setWindowTitle(tr("Add ConnectedAP"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* apEdit = new QLineEdit(m_model.ied.apName.c_str(), &dlg);
 	QLineEdit* iedEdit = new QLineEdit(m_model.ied.name.c_str(), &dlg);
@@ -2291,7 +2291,7 @@ void MainWindow::addConnectedAP(int subnetIdx)
 	cap.iedName = iedEdit->text().toUtf8().constData();
 	m_model.subnets[subnetIdx].aps.push_back(cap);
 	buildTree();
-	log(tr("添加接入点 %1 到子网 %2").arg(apEdit->text()).arg(QString::fromUtf8(m_model.subnets[subnetIdx].name.c_str())));
+	log(tr("Add access point %1 to SubNetwork %2").arg(apEdit->text()).arg(QString::fromUtf8(m_model.subnets[subnetIdx].name.c_str())));
 }
 
 void MainWindow::deleteConnectedAP(int subnetIdx, int apIdx)
@@ -2300,11 +2300,11 @@ void MainWindow::deleteConnectedAP(int subnetIdx, int apIdx)
 		return;
 	if (apIdx < 0 || apIdx >= (int)m_model.subnets[subnetIdx].aps.size())
 		return;
-	if (QMessageBox::question(this, tr("确认"), tr("确认删除该接入点？")) != QMessageBox::Yes)
+	if (QMessageBox::question(this, tr("Confirm"), tr("Delete this access point?")) != QMessageBox::Yes)
 		return;
 	m_model.subnets[subnetIdx].aps.erase(m_model.subnets[subnetIdx].aps.begin() + apIdx);
 	buildTree();
-	log(tr("删除接入点"));
+	log(tr("Delete access point"));
 }
 
 void MainWindow::addCommAddress(int subnetIdx, int apIdx, bool isGse)
@@ -2315,7 +2315,7 @@ void MainWindow::addCommAddress(int subnetIdx, int apIdx, bool isGse)
 		return;
 	SclConnectedAP& cap = m_model.subnets[subnetIdx].aps[apIdx];
 	QDialog dlg(this);
-	dlg.setWindowTitle(isGse ? tr("添加 GSE 地址") : tr("添加 SMV 地址"));
+	dlg.setWindowTitle(isGse ? tr("Add GSE address") : tr("Add SMV address"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* ldEdit = new QLineEdit(m_model.ied.lds.empty() ? QString() : QString::fromUtf8(m_model.ied.lds[0].inst.c_str()), &dlg);
 	QLineEdit* cbEdit = new QLineEdit(isGse ? "gcb1" : "msvcb1", &dlg);
@@ -2349,7 +2349,7 @@ void MainWindow::addCommAddress(int subnetIdx, int apIdx, bool isGse)
 		cap.smvs.push_back(addr);
 	}
 	buildTree();
-	log(tr("添加%1通信地址 %2/%3").arg(isGse ? tr("GSE") : tr("SMV"))
+	log(tr("Add %1 communication address %2/%3").arg(isGse ? tr("GSE") : tr("SMV"))
 		.arg(QString::fromUtf8(addr.ldInst.c_str())).arg(QString::fromUtf8(addr.cbName.c_str())));
 }
 
@@ -2363,11 +2363,11 @@ void MainWindow::deleteCommAddress(int subnetIdx, int apIdx, bool isGse, int add
 	std::vector<SclCommAddress>& list = isGse ? cap.gses : cap.smvs;
 	if (addrIdx < 0 || addrIdx >= (int)list.size())
 		return;
-	if (QMessageBox::question(this, tr("确认"), tr("确认删除该通信地址？")) != QMessageBox::Yes)
+	if (QMessageBox::question(this, tr("Confirm"), tr("Delete this communication address?")) != QMessageBox::Yes)
 		return;
 	list.erase(list.begin() + addrIdx);
 	buildTree();
-	log(tr("删除通信地址"));
+	log(tr("Delete communication address"));
 }
 
 void MainWindow::addDataSet(int li, int ni)
@@ -2376,12 +2376,12 @@ void MainWindow::addDataSet(int li, int ni)
 	if (ln == 0)
 		return;
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("添加数据集"));
+	dlg.setWindowTitle(tr("Add DataSet"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* nameEdit = new QLineEdit(QString("ds%1").arg((int)ln->dataSets.size() + 1), &dlg);
 	QLineEdit* descEdit = new QLineEdit(&dlg);
-	form->addRow(tr("名称"), nameEdit);
-	form->addRow(tr("描述"), descEdit);
+	form->addRow(tr("Name"), nameEdit);
+	form->addRow(tr("Description"), descEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
 	connect(box, SIGNAL(accepted()), &dlg, SLOT(accept()));
@@ -2391,14 +2391,14 @@ void MainWindow::addDataSet(int li, int ni)
 	std::string name = nameEdit->text().toUtf8().constData();
 	if (!validIdent(name))
 	{
-		QMessageBox::warning(this, tr("校验失败"), tr("数据集名称须合法"));
+		QMessageBox::warning(this, tr("Validation failed"), tr("DataSet name must be valid"));
 		return;
 	}
 	for (size_t i = 0; i < ln->dataSets.size(); ++i)
 	{
 		if (ln->dataSets[i].name == name)
 		{
-			QMessageBox::warning(this, tr("校验失败"), tr("数据集名称在该逻辑节点内须唯一"));
+			QMessageBox::warning(this, tr("Validation failed"), tr("DataSet name must be unique within this logical node"));
 			return;
 		}
 	}
@@ -2409,7 +2409,7 @@ void MainWindow::addDataSet(int li, int ni)
 		return;
 	ln->dataSets.push_back(ds);
 	buildTree();
-	log(tr("添加数据集 %1（%2 个 FCDA）").arg(nameEdit->text()).arg((int)ds.fcdas.size()));
+	log(tr("Add DataSet %1 (%2 FCDA)").arg(nameEdit->text()).arg((int)ds.fcdas.size()));
 }
 
 bool MainWindow::editDataSetDialog(SclDataSet& ds, int li)
@@ -2422,13 +2422,13 @@ bool MainWindow::editDataSetDialog(SclDataSet& ds, int li)
 	std::vector<TreeRef> refs;
 
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("编辑数据集：%1").arg(QString::fromUtf8(ds.name.c_str())));
+	dlg.setWindowTitle(tr("Edit DataSet: %1").arg(QString::fromUtf8(ds.name.c_str())));
 	dlg.resize(880, 560);
 	QVBoxLayout* vbox = new QVBoxLayout(&dlg);
-	vbox->addWidget(new QLabel(tr("勾选 DO 生成 FCDA 成员（顺序与树一致）；取消勾选即移除。"), &dlg));
+	vbox->addWidget(new QLabel(tr("Check DOs to generate FCDA members (in tree order); uncheck to remove."), &dlg));
 	QHBoxLayout* mid = new QHBoxLayout;
 	QTreeWidget* srcTree = new QTreeWidget(&dlg);
-	srcTree->setHeaderLabels(QStringList() << tr("源模型") << tr("CDC"));
+	srcTree->setHeaderLabels(QStringList() << tr("Source model") << tr("CDC"));
 	mid->addWidget(srcTree, 3);
 	QListWidget* fcdaList = new QListWidget(&dlg);
 	fcdaList->setSelectionMode(QAbstractItemView::NoSelection);
@@ -2548,7 +2548,7 @@ bool MainWindow::editDataSetDialog(SclDataSet& ds, int li)
 		newFcdas.push_back(f);
 	}
 	ds.fcdas = newFcdas;
-	log(tr("数据集 %1 更新为 %2 个 FCDA").arg(QString::fromUtf8(ds.name.c_str())).arg((int)ds.fcdas.size()));
+	log(tr("DataSet %1 updated to %2 FCDA").arg(QString::fromUtf8(ds.name.c_str())).arg((int)ds.fcdas.size()));
 	return true;
 }
 
@@ -2557,13 +2557,13 @@ void MainWindow::deleteDataSet(int li, int ni, int di)
 	SclLn* ln = lnAt(li, ni);
 	if (ln == 0 || di < 0 || di >= (int)ln->dataSets.size())
 		return;
-	if (QMessageBox::question(this, tr("确认"),
-		tr("确认删除数据集 %1？").arg(QString::fromUtf8(ln->dataSets[di].name.c_str()))) != QMessageBox::Yes)
+	if (QMessageBox::question(this, tr("Confirm"),
+		tr("Delete DataSet %1?").arg(QString::fromUtf8(ln->dataSets[di].name.c_str()))) != QMessageBox::Yes)
 		return;
 	QString name = QString::fromUtf8(ln->dataSets[di].name.c_str());
 	ln->dataSets.erase(ln->dataSets.begin() + di);
 	buildTree();
-	log(tr("删除数据集 %1").arg(name));
+	log(tr("Delete DataSet %1").arg(name));
 }
 
 SclCommAddress* MainWindow::findGseAddress(const std::string& ldInst, const std::string& cbName)
@@ -2653,23 +2653,23 @@ void MainWindow::addReport(int li, int ni)
 		return;
 	if (ln->dataSets.empty())
 	{
-		QMessageBox::warning(this, tr("提示"), tr("请先在该逻辑节点下添加数据集"));
+		QMessageBox::warning(this, tr("Hint"), tr("Please add a DataSet under this logical node first"));
 		return;
 	}
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("添加报告控制块"));
+	dlg.setWindowTitle(tr("Add report control block"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* nameEdit = new QLineEdit(QString("brcb%1").arg((int)ln->reports.size() + 1), &dlg);
 	QComboBox* dsCombo = new QComboBox(&dlg);
 	for (size_t i = 0; i < ln->dataSets.size(); ++i)
 		dsCombo->addItem(QString::fromUtf8(ln->dataSets[i].name.c_str()));
 	QComboBox* bufferedCombo = new QComboBox(&dlg);
-	bufferedCombo->addItem("BRCB（缓冲）");
-	bufferedCombo->addItem("URCB（非缓冲）");
+	bufferedCombo->addItem(tr("BRCB (buffered)"));
+	bufferedCombo->addItem(tr("URCB (unbuffered)"));
 	QLineEdit* rptIdEdit = new QLineEdit(m_model.ied.name.c_str(), &dlg);
-	form->addRow(tr("名称"), nameEdit);
-	form->addRow(tr("数据集"), dsCombo);
-	form->addRow(tr("类型"), bufferedCombo);
+	form->addRow(tr("Name"), nameEdit);
+	form->addRow(tr("DataSets"), dsCombo);
+	form->addRow(tr("Type"), bufferedCombo);
 	form->addRow(tr("RptID"), rptIdEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
@@ -2680,14 +2680,14 @@ void MainWindow::addReport(int li, int ni)
 	std::string name = nameEdit->text().toUtf8().constData();
 	if (!validIdent(name))
 	{
-		QMessageBox::warning(this, tr("校验失败"), tr("名称须合法"));
+		QMessageBox::warning(this, tr("Validation failed"), tr("Name must be valid"));
 		return;
 	}
 	for (size_t i = 0; i < ln->reports.size(); ++i)
 	{
 		if (ln->reports[i].name == name)
 		{
-			QMessageBox::warning(this, tr("校验失败"), tr("控制块名称须唯一"));
+			QMessageBox::warning(this, tr("Validation failed"), tr("Control block name must be unique"));
 			return;
 		}
 	}
@@ -2712,7 +2712,7 @@ void MainWindow::addReport(int li, int ni)
 	rc.optFields.entryID = true;
 	ln->reports.push_back(rc);
 	buildTree();
-	log(tr("添加报告控制块 %1（%2，数据集 %3）").arg(QString::fromUtf8(name.c_str()))
+	log(tr("Add report control block %1 (%2, DataSet %3)").arg(QString::fromUtf8(name.c_str()))
 		.arg(rc.buffered ? tr("BRCB") : tr("URCB")).arg(QString::fromUtf8(rc.dataSet.c_str())));
 }
 
@@ -2724,11 +2724,11 @@ void MainWindow::addGseControl(int li, int ni)
 		return;
 	if (ln->dataSets.empty())
 	{
-		QMessageBox::warning(this, tr("提示"), tr("请先在该逻辑节点下添加数据集"));
+		QMessageBox::warning(this, tr("Hint"), tr("Please add a DataSet under this logical node first"));
 		return;
 	}
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("添加 GOOSE 控制块"));
+	dlg.setWindowTitle(tr("Add GOOSE control block"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* nameEdit = new QLineEdit(QString("gcb%1").arg((int)ln->gses.size() + 1), &dlg);
 	QComboBox* dsCombo = new QComboBox(&dlg);
@@ -2736,8 +2736,8 @@ void MainWindow::addGseControl(int li, int ni)
 		dsCombo->addItem(QString::fromUtf8(ln->dataSets[i].name.c_str()));
 	QLineEdit* appIdEdit = new QLineEdit(QString("%1_%2_gcb").arg(QString::fromUtf8(m_model.ied.name.c_str()))
 		.arg(QString::fromUtf8(ld->inst.c_str())), &dlg);
-	form->addRow(tr("名称"), nameEdit);
-	form->addRow(tr("数据集"), dsCombo);
+	form->addRow(tr("Name"), nameEdit);
+	form->addRow(tr("DataSets"), dsCombo);
 	form->addRow(tr("appID"), appIdEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
@@ -2748,14 +2748,14 @@ void MainWindow::addGseControl(int li, int ni)
 	std::string name = nameEdit->text().toUtf8().constData();
 	if (!validIdent(name))
 	{
-		QMessageBox::warning(this, tr("校验失败"), tr("名称须合法"));
+		QMessageBox::warning(this, tr("Validation failed"), tr("Name must be valid"));
 		return;
 	}
 	for (size_t i = 0; i < ln->gses.size(); ++i)
 	{
 		if (ln->gses[i].name == name)
 		{
-			QMessageBox::warning(this, tr("校验失败"), tr("控制块名称须唯一"));
+			QMessageBox::warning(this, tr("Validation failed"), tr("Control block name must be unique"));
 			return;
 		}
 	}
@@ -2769,7 +2769,7 @@ void MainWindow::addGseControl(int li, int ni)
 	ln->gses.push_back(gc);
 	ensureGseAddress(ld->inst, name);
 	buildTree();
-	log(tr("添加 GOOSE 控制块 %1（数据集 %2），GSE 地址已自动创建，可在通信节点调整")
+	log(tr("Add GOOSE control block %1 (DataSet %2); GSE address auto-created, adjust it under the Communication node")
 		.arg(QString::fromUtf8(name.c_str())).arg(QString::fromUtf8(gc.dataSet.c_str())));
 }
 
@@ -2781,11 +2781,11 @@ void MainWindow::addSmvControl(int li, int ni)
 		return;
 	if (ln->dataSets.empty())
 	{
-		QMessageBox::warning(this, tr("提示"), tr("请先在该逻辑节点下添加数据集"));
+		QMessageBox::warning(this, tr("Hint"), tr("Please add a DataSet under this logical node first"));
 		return;
 	}
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("添加采样值控制块"));
+	dlg.setWindowTitle(tr("Add sampled value control block"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* nameEdit = new QLineEdit(QString("msvcb%1").arg((int)ln->smvs.size() + 1), &dlg);
 	QComboBox* dsCombo = new QComboBox(&dlg);
@@ -2794,8 +2794,8 @@ void MainWindow::addSmvControl(int li, int ni)
 	QLineEdit* smvIdEdit = new QLineEdit(QString("%1_%2_msvcb").arg(QString::fromUtf8(m_model.ied.name.c_str()))
 		.arg(QString::fromUtf8(ld->inst.c_str())), &dlg);
 	QLineEdit* rateEdit = new QLineEdit("80", &dlg);
-	form->addRow(tr("名称"), nameEdit);
-	form->addRow(tr("数据集"), dsCombo);
+	form->addRow(tr("Name"), nameEdit);
+	form->addRow(tr("DataSets"), dsCombo);
 	form->addRow(tr("smvID"), smvIdEdit);
 	form->addRow(tr("smpRate"), rateEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
@@ -2807,14 +2807,14 @@ void MainWindow::addSmvControl(int li, int ni)
 	std::string name = nameEdit->text().toUtf8().constData();
 	if (!validIdent(name))
 	{
-		QMessageBox::warning(this, tr("校验失败"), tr("名称须合法"));
+		QMessageBox::warning(this, tr("Validation failed"), tr("Name must be valid"));
 		return;
 	}
 	for (size_t i = 0; i < ln->smvs.size(); ++i)
 	{
 		if (ln->smvs[i].name == name)
 		{
-			QMessageBox::warning(this, tr("校验失败"), tr("控制块名称须唯一"));
+			QMessageBox::warning(this, tr("Validation failed"), tr("Control block name must be unique"));
 			return;
 		}
 	}
@@ -2831,7 +2831,7 @@ void MainWindow::addSmvControl(int li, int ni)
 	ln->smvs.push_back(sc);
 	ensureSmvAddress(ld->inst, name);
 	buildTree();
-	log(tr("添加采样值控制块 %1，SMV 地址已自动创建").arg(QString::fromUtf8(name.c_str())));
+	log(tr("Add sampled value control block %1; SMV address auto-created").arg(QString::fromUtf8(name.c_str())));
 }
 
 void MainWindow::addLogControl(int li, int ni)
@@ -2840,11 +2840,11 @@ void MainWindow::addLogControl(int li, int ni)
 	if (ln == 0)
 		return;
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("添加日志控制块"));
+	dlg.setWindowTitle(tr("Add log control block"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* nameEdit = new QLineEdit(QString("lc%1").arg((int)ln->logs.size() + 1), &dlg);
 	QLineEdit* logNameEdit = new QLineEdit(&dlg);
-	form->addRow(tr("名称"), nameEdit);
+	form->addRow(tr("Name"), nameEdit);
 	form->addRow(tr("logName"), logNameEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
@@ -2855,7 +2855,7 @@ void MainWindow::addLogControl(int li, int ni)
 	std::string name = nameEdit->text().toUtf8().constData();
 	if (!validIdent(name))
 	{
-		QMessageBox::warning(this, tr("校验失败"), tr("名称须合法"));
+		QMessageBox::warning(this, tr("Validation failed"), tr("Name must be valid"));
 		return;
 	}
 	SclLogControl lc;
@@ -2864,7 +2864,7 @@ void MainWindow::addLogControl(int li, int ni)
 	lc.trgOps.present = true;
 	ln->logs.push_back(lc);
 	buildTree();
-	log(tr("添加日志控制块 %1").arg(QString::fromUtf8(name.c_str())));
+	log(tr("Add log control block %1").arg(QString::fromUtf8(name.c_str())));
 }
 
 void MainWindow::addSettingControl(int li, int ni)
@@ -2873,11 +2873,11 @@ void MainWindow::addSettingControl(int li, int ni)
 	if (ln == 0)
 		return;
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("添加定值控制块"));
+	dlg.setWindowTitle(tr("Add setting control block"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* nameEdit = new QLineEdit(QString("scb%1").arg((int)ln->settings.size() + 1), &dlg);
 	QLineEdit* sgEdit = new QLineEdit("2", &dlg);
-	form->addRow(tr("名称"), nameEdit);
+	form->addRow(tr("Name"), nameEdit);
 	form->addRow(tr("numOfSG"), sgEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
@@ -2888,7 +2888,7 @@ void MainWindow::addSettingControl(int li, int ni)
 	std::string name = nameEdit->text().toUtf8().constData();
 	if (!validIdent(name))
 	{
-		QMessageBox::warning(this, tr("校验失败"), tr("名称须合法"));
+		QMessageBox::warning(this, tr("Validation failed"), tr("Name must be valid"));
 		return;
 	}
 	SclSettingControl sc;
@@ -2896,7 +2896,7 @@ void MainWindow::addSettingControl(int li, int ni)
 	sc.numOfSG = sgEdit->text().toUtf8().constData();
 	ln->settings.push_back(sc);
 	buildTree();
-	log(tr("添加定值控制块 %1").arg(QString::fromUtf8(name.c_str())));
+	log(tr("Add setting control block %1").arg(QString::fromUtf8(name.c_str())));
 }
 
 void MainWindow::deleteControlBlock(const QString& kind, int li, int ni, int idx)
@@ -2909,39 +2909,39 @@ void MainWindow::deleteControlBlock(const QString& kind, int li, int ni, int idx
 	{
 		if (idx < 0 || idx >= (int)ln->reports.size()) return;
 		name = QString::fromUtf8(ln->reports[idx].name.c_str());
-		if (QMessageBox::question(this, tr("确认"), tr("确认删除报告控制块 %1？").arg(name)) != QMessageBox::Yes) return;
+		if (QMessageBox::question(this, tr("Confirm"), tr("Delete report control block %1?").arg(name)) != QMessageBox::Yes) return;
 		ln->reports.erase(ln->reports.begin() + idx);
 	}
 	else if (kind == "gcb")
 	{
 		if (idx < 0 || idx >= (int)ln->gses.size()) return;
 		name = QString::fromUtf8(ln->gses[idx].name.c_str());
-		if (QMessageBox::question(this, tr("确认"), tr("确认删除 GOOSE 控制块 %1？").arg(name)) != QMessageBox::Yes) return;
+		if (QMessageBox::question(this, tr("Confirm"), tr("Delete GOOSE control block %1?").arg(name)) != QMessageBox::Yes) return;
 		ln->gses.erase(ln->gses.begin() + idx);
 	}
 	else if (kind == "smcb")
 	{
 		if (idx < 0 || idx >= (int)ln->smvs.size()) return;
 		name = QString::fromUtf8(ln->smvs[idx].name.c_str());
-		if (QMessageBox::question(this, tr("确认"), tr("确认删除采样值控制块 %1？").arg(name)) != QMessageBox::Yes) return;
+		if (QMessageBox::question(this, tr("Confirm"), tr("Delete sampled value control block %1?").arg(name)) != QMessageBox::Yes) return;
 		ln->smvs.erase(ln->smvs.begin() + idx);
 	}
 	else if (kind == "logcb")
 	{
 		if (idx < 0 || idx >= (int)ln->logs.size()) return;
 		name = QString::fromUtf8(ln->logs[idx].name.c_str());
-		if (QMessageBox::question(this, tr("确认"), tr("确认删除日志控制块 %1？").arg(name)) != QMessageBox::Yes) return;
+		if (QMessageBox::question(this, tr("Confirm"), tr("Delete log control block %1?").arg(name)) != QMessageBox::Yes) return;
 		ln->logs.erase(ln->logs.begin() + idx);
 	}
 	else if (kind == "setcb")
 	{
 		if (idx < 0 || idx >= (int)ln->settings.size()) return;
 		name = QString::fromUtf8(ln->settings[idx].name.c_str());
-		if (QMessageBox::question(this, tr("确认"), tr("确认删除定值控制块 %1？").arg(name)) != QMessageBox::Yes) return;
+		if (QMessageBox::question(this, tr("Confirm"), tr("Delete setting control block %1?").arg(name)) != QMessageBox::Yes) return;
 		ln->settings.erase(ln->settings.begin() + idx);
 	}
 	buildTree();
-	log(tr("删除控制块 %1").arg(name));
+	log(tr("Delete control block %1").arg(name));
 }
 
 // ---------------- 第二期：DO/DAI 编辑与模板库 ----------------
@@ -3023,12 +3023,12 @@ bool MainWindow::daiValueValid(const SclDaiSpec& spec, const QString& value, QSt
 	if (bType == "BOOLEAN")
 	{
 		QString vs = value.trimmed().toLower();
-		if (vs == "true" || vs == "1" || vs == tr("是"))
+		if (vs == "true" || vs == "1" || vs == tr("Yes"))
 		{
 			normalized = "true";
 			return true;
 		}
-		if (vs == "false" || vs == "0" || vs == tr("否"))
+		if (vs == "false" || vs == "0" || vs == tr("No"))
 		{
 			normalized = "false";
 			return true;
@@ -3161,14 +3161,14 @@ void MainWindow::addDo(int li, int ni)
 	std::vector<SclCdcTemplate> templates = mergedCdcTemplates();
 
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("添加 DO"));
+	dlg.setWindowTitle(tr("Add DO"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* nameEdit = new QLineEdit(&dlg);
 	QComboBox* cdcCombo = new QComboBox(&dlg);
 	for (size_t i = 0; i < templates.size(); ++i)
 	{
 		QString label = QString::fromUtf8(templates[i].cdc.c_str()) +
-			(templates[i].isCustom ? tr("（自定义）") : QString());
+			(templates[i].isCustom ? tr(" (custom)") : QString());
 		if (!templates[i].desc.empty())
 			label += " - " + QString::fromUtf8(templates[i].desc.c_str());
 		cdcCombo->addItem(label, QString::fromUtf8(templates[i].cdc.c_str()));
@@ -3176,10 +3176,10 @@ void MainWindow::addDo(int li, int ni)
 	QComboBox* enumCombo = new QComboBox(&dlg);
 	enumCombo->addItems(enumIdList());
 	QLineEdit* descEdit = new QLineEdit(&dlg);
-	form->addRow(tr("DO 名称"), nameEdit);
-	form->addRow(tr("CDC 模板"), cdcCombo);
-	form->addRow(tr("枚举类型(stVal)"), enumCombo);
-	form->addRow(tr("描述"), descEdit);
+	form->addRow(tr("DO name"), nameEdit);
+	form->addRow(tr("CDC template"), cdcCombo);
+	form->addRow(tr("Enum type (stVal)"), enumCombo);
+	form->addRow(tr("Description"), descEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
 	connect(box, SIGNAL(accepted()), &dlg, SLOT(accept()));
@@ -3190,7 +3190,7 @@ void MainWindow::addDo(int li, int ni)
 		std::string cdc = cdcCombo->currentData().toString().toUtf8().constData();
 		if (!validIdent(name))
 		{
-			QMessageBox::warning(&dlg, tr("校验失败"), tr("DO 名称须为 1-64 位、字母开头、仅含字母数字下划线"));
+			QMessageBox::warning(&dlg, tr("Validation failed"), tr("DO name must be 1-64 chars, start with a letter, letters/digits/underscore only"));
 			continue;
 		}
 		bool dup = false;
@@ -3198,14 +3198,14 @@ void MainWindow::addDo(int li, int ni)
 			if (ln->dos[i].name == name) dup = true;
 		if (dup)
 		{
-			QMessageBox::warning(&dlg, tr("校验失败"), tr("DO 名称在该逻辑节点内须唯一"));
+			QMessageBox::warning(&dlg, tr("Validation failed"), tr("DO name must be unique within this logical node"));
 			continue;
 		}
 		bool found = false;
 		SclCdcTemplate tpl = findCdcTemplate(cdc, found);
 		if (!found)
 		{
-			QMessageBox::warning(&dlg, tr("校验失败"), tr("CDC 模板不存在"));
+			QMessageBox::warning(&dlg, tr("Validation failed"), tr("CDC template not found"));
 			continue;
 		}
 		std::string stValEnum;
@@ -3220,7 +3220,7 @@ void MainWindow::addDo(int li, int ni)
 		}
 		ln->dos.push_back(dobj);
 		buildTree();
-		log(tr("添加 DO %1（CDC=%2）到 %3").arg(nameEdit->text())
+		log(tr("Add DO %1 (CDC=%2) to %3").arg(nameEdit->text())
 			.arg(QString::fromUtf8(cdc.c_str()))
 			.arg(QString::fromUtf8(ln->Name().c_str())));
 		return;
@@ -3234,10 +3234,10 @@ void MainWindow::editDo(int li, int ni, int di)
 	if (ln == 0 || dobj == 0)
 		return;
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("编辑 DO 名称"));
+	dlg.setWindowTitle(tr("Rename DO"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* nameEdit = new QLineEdit(QString::fromUtf8(dobj->name.c_str()), &dlg);
-	form->addRow(tr("DO 名称"), nameEdit);
+	form->addRow(tr("DO name"), nameEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
 	connect(box, SIGNAL(accepted()), &dlg, SLOT(accept()));
@@ -3251,14 +3251,14 @@ void MainWindow::editDo(int li, int ni, int di)
 	{
 		if (ln->dos[i].name == name)
 		{
-			QMessageBox::warning(this, tr("校验失败"), tr("DO 名称在该逻辑节点内须唯一"));
+			QMessageBox::warning(this, tr("Validation failed"), tr("DO name must be unique within this logical node"));
 			return;
 		}
 	}
 	QString old = QString::fromUtf8(dobj->name.c_str());
 	dobj->name = name;
 	buildTree();
-	log(tr("DO 重命名：%1 -> %2").arg(old).arg(QString::fromUtf8(name.c_str())));
+	log(tr("DO renamed: %1 -> %2").arg(old).arg(QString::fromUtf8(name.c_str())));
 }
 
 void MainWindow::deleteDo(int li, int ni, int di)
@@ -3267,19 +3267,19 @@ void MainWindow::deleteDo(int li, int ni, int di)
 	SclDo* dobj = doAt(li, ni, di);
 	if (ln == 0 || dobj == 0)
 		return;
-	if (QMessageBox::question(this, tr("确认"),
-		tr("确认删除 DO %1？").arg(QString::fromUtf8(dobj->name.c_str()))) != QMessageBox::Yes)
+	if (QMessageBox::question(this, tr("Confirm"),
+		tr("Delete DO %1?").arg(QString::fromUtf8(dobj->name.c_str()))) != QMessageBox::Yes)
 		return;
 	QString name = QString::fromUtf8(dobj->name.c_str());
 	ln->dos.erase(ln->dos.begin() + di);
 	buildTree();
-	log(tr("删除 DO %1").arg(name));
+	log(tr("Delete DO %1").arg(name));
 }
 
 void MainWindow::manageTemplates()
 {
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("模板库管理"));
+	dlg.setWindowTitle(tr("Template library"));
 	dlg.resize(820, 560);
 	QVBoxLayout* vbox = new QVBoxLayout(&dlg);
 
@@ -3290,12 +3290,12 @@ void MainWindow::manageTemplates()
 	QWidget* cdcTab = new QWidget(&dlg);
 	QVBoxLayout* cdcLay = new QVBoxLayout(cdcTab);
 	QHBoxLayout* searchLay = new QHBoxLayout;
-	searchLay->addWidget(new QLabel(tr("筛选："), &dlg));
+	searchLay->addWidget(new QLabel(tr("Filter:"), &dlg));
 	QLineEdit* searchEdit = new QLineEdit(&dlg);
 	searchLay->addWidget(searchEdit);
 	cdcLay->addLayout(searchLay);
 	QTableWidget* table = new QTableWidget(0, 4, &dlg);
-	table->setHorizontalHeaderLabels(QStringList() << tr("类型") << tr("CDC") << tr("DA 数") << tr("DA 列表"));
+	table->setHorizontalHeaderLabels(QStringList() << tr("Type") << tr("CDC") << tr("DA count") << tr("DA list"));
 	table->setEditTriggers(QAbstractItemView::NoEditTriggers);
 	table->setSelectionBehavior(QAbstractItemView::SelectRows);
 	cdcLay->addWidget(table);
@@ -3311,7 +3311,7 @@ void MainWindow::manageTemplates()
 			if (!filter.isEmpty() && !cdc.contains(filter, Qt::CaseInsensitive))
 				continue;
 			table->insertRow(row);
-			table->setItem(row, 0, new QTableWidgetItem(all[i].isCustom ? tr("自定义") : tr("内置")));
+			table->setItem(row, 0, new QTableWidgetItem(all[i].isCustom ? tr("Custom") : tr("Built-in")));
 			table->setItem(row, 1, new QTableWidgetItem(cdc));
 			table->setItem(row, 2, new QTableWidgetItem(QString::number((int)all[i].das.size())));
 			QString das;
@@ -3329,21 +3329,21 @@ void MainWindow::manageTemplates()
 	});
 
 	QHBoxLayout* cdcBtns = new QHBoxLayout;
-	QPushButton* addBtn = new QPushButton(tr("添加模板"), &dlg);
-	QPushButton* editBtn = new QPushButton(tr("编辑模板"), &dlg);
-	QPushButton* delBtn = new QPushButton(tr("删除模板"), &dlg);
+	QPushButton* addBtn = new QPushButton(tr("Add template"), &dlg);
+	QPushButton* editBtn = new QPushButton(tr("Edit template"), &dlg);
+	QPushButton* delBtn = new QPushButton(tr("Delete template"), &dlg);
 	cdcBtns->addWidget(addBtn);
 	cdcBtns->addWidget(editBtn);
 	cdcBtns->addWidget(delBtn);
 	cdcBtns->addStretch(1);
 	cdcLay->addLayout(cdcBtns);
-	tabs->addTab(cdcTab, tr("公共数据类(CDC)"));
+	tabs->addTab(cdcTab, tr("Common data classes (CDC)"));
 
 	// Tab2: LNClass 模板（只读）
 	QWidget* lnTab = new QWidget(&dlg);
 	QVBoxLayout* lnLay = new QVBoxLayout(lnTab);
 	QTableWidget* lnTable = new QTableWidget(0, 3, &dlg);
-	lnTable->setHorizontalHeaderLabels(QStringList() << tr("LnClass") << tr("描述") << tr("DO 列表"));
+	lnTable->setHorizontalHeaderLabels(QStringList() << tr("LnClass") << tr("Description") << tr("DO list"));
 	lnTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
 	lnTable->setSelectionBehavior(QAbstractItemView::SelectRows);
 	const std::vector<SclLnT>& lnTypes = SclTemplates::LnTypes();
@@ -3357,9 +3357,9 @@ void MainWindow::manageTemplates()
 			dos += (d ? "、" : "") + QString::fromUtf8(lnTypes[i].dos[d].name);
 		lnTable->setItem((int)i, 2, new QTableWidgetItem(dos));
 	}
-	lnLay->addWidget(new QLabel(tr("逻辑节点类模板为内置标准模板（只读）。添加逻辑节点时从此表选择。"), &dlg));
+	lnLay->addWidget(new QLabel(tr("Logical node class templates are built-in standards (read-only). Pick from this table when adding logical nodes."), &dlg));
 	lnLay->addWidget(lnTable);
-	tabs->addTab(lnTab, tr("逻辑节点类(LNClass)"));
+	tabs->addTab(lnTab, tr("Logical node classes (LNClass)"));
 
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Close, Qt::Horizontal, &dlg);
 	connect(box, SIGNAL(rejected()), &dlg, SLOT(reject()));
@@ -3368,17 +3368,17 @@ void MainWindow::manageTemplates()
 	// 编辑/新增 CDC 模板的内嵌对话框
 	auto editCdcDialog = [&](SclCdcTemplate& t, bool isNew) -> bool {
 		QDialog ed(&dlg);
-		ed.setWindowTitle(isNew ? tr("添加 CDC 模板") : tr("编辑 CDC 模板"));
+		ed.setWindowTitle(isNew ? tr("Add CDC template") : tr("Edit CDC template"));
 		ed.resize(560, 420);
 		QVBoxLayout* lay = new QVBoxLayout(&ed);
 		QFormLayout* form = new QFormLayout;
 		QLineEdit* cdcEdit = new QLineEdit(QString::fromUtf8(t.cdc.c_str()), &ed);
 		QLineEdit* descEdit = new QLineEdit(QString::fromUtf8(t.desc.c_str()), &ed);
-		form->addRow(tr("CDC 名称"), cdcEdit);
-		form->addRow(tr("描述"), descEdit);
+		form->addRow(tr("CDC name"), cdcEdit);
+		form->addRow(tr("Description"), descEdit);
 		lay->addLayout(form);
 		QTableWidget* daTable = new QTableWidget(0, 4, &ed);
-		daTable->setHorizontalHeaderLabels(QStringList() << tr("name") << tr("bType") << tr("fc") << tr("type(Struct 时)"));
+		daTable->setHorizontalHeaderLabels(QStringList() << tr("name") << tr("bType") << tr("fc") << tr("type (required for Struct)"));
 		QStringList bTypes, fcs;
 		bTypes << "BOOLEAN" << "INT8" << "INT16" << "INT32" << "INT64" << "INT128" << "UINT8" << "UINT16"
 			<< "UINT32" << "UINT64" << "FLOAT32" << "FLOAT64" << "Enum" << "VisString255" << "VisString64"
@@ -3404,8 +3404,8 @@ void MainWindow::manageTemplates()
 			addDaRow(t.das[i]);
 		lay->addWidget(daTable);
 		QHBoxLayout* daBtns = new QHBoxLayout;
-		QPushButton* rowAdd = new QPushButton(tr("添加 DA"), &ed);
-		QPushButton* rowDel = new QPushButton(tr("删除选中 DA"), &ed);
+		QPushButton* rowAdd = new QPushButton(tr("Add DA"), &ed);
+		QPushButton* rowDel = new QPushButton(tr("Delete selected DA"), &ed);
 		daBtns->addWidget(rowAdd);
 		daBtns->addWidget(rowDel);
 		daBtns->addStretch(1);
@@ -3430,7 +3430,7 @@ void MainWindow::manageTemplates()
 		std::string cdc = cdcEdit->text().toUtf8().constData();
 		if (!validIdent(cdc))
 		{
-			QMessageBox::warning(&ed, tr("校验失败"), tr("CDC 名称须合法"));
+			QMessageBox::warning(&ed, tr("Validation failed"), tr("CDC name must be valid"));
 			return false;
 		}
 		if (isNew)
@@ -3440,7 +3440,7 @@ void MainWindow::manageTemplates()
 			{
 				if (all[i].cdc == cdc)
 				{
-					QMessageBox::warning(&ed, tr("校验失败"), tr("CDC 名称与现有模板重复"));
+					QMessageBox::warning(&ed, tr("Validation failed"), tr("CDC name duplicates an existing template"));
 					return false;
 				}
 			}
@@ -3461,7 +3461,7 @@ void MainWindow::manageTemplates()
 			{
 				if (da.bType == "Struct" && da.structType.empty())
 				{
-					QMessageBox::warning(&ed, tr("校验失败"), tr("Struct 类型的 DA 必须填写 type（如 AnalogueValue_1）"));
+					QMessageBox::warning(&ed, tr("Validation failed"), tr("A Struct DA requires a type (e.g. AnalogueValue_1)"));
 					return false;
 				}
 				t.das.push_back(da);
@@ -3469,7 +3469,7 @@ void MainWindow::manageTemplates()
 		}
 		if (t.das.empty())
 		{
-			QMessageBox::warning(&ed, tr("校验失败"), tr("至少需要一个 DA"));
+			QMessageBox::warning(&ed, tr("Validation failed"), tr("At least one DA is required"));
 			return false;
 		}
 		return true;
@@ -3483,7 +3483,7 @@ void MainWindow::manageTemplates()
 		m_userCdc.push_back(t);
 		saveUserTemplates();
 		fillTable(searchEdit->text());
-		log(tr("添加自定义 CDC 模板：%1").arg(QString::fromUtf8(t.cdc.c_str())));
+		log(tr("Custom CDC template added: %1").arg(QString::fromUtf8(t.cdc.c_str())));
 	});
 	connect(editBtn, &QPushButton::clicked, this, [&]() {
 		int r = table->currentRow();
@@ -3493,7 +3493,7 @@ void MainWindow::manageTemplates()
 		if (idx < 0 || idx >= (int)all.size()) return;
 		if (!all[idx].isCustom)
 		{
-			QMessageBox::information(&dlg, tr("提示"), tr("内置模板不可编辑，可新建自定义模板替代"));
+			QMessageBox::information(&dlg, tr("Hint"), tr("Built-in templates cannot be edited; create a custom template instead"));
 			return;
 		}
 		SclCdcTemplate t = all[idx];
@@ -3509,7 +3509,7 @@ void MainWindow::manageTemplates()
 		}
 		saveUserTemplates();
 		fillTable(searchEdit->text());
-		log(tr("修改自定义 CDC 模板：%1").arg(QString::fromUtf8(t.cdc.c_str())));
+		log(tr("Custom CDC template updated: %1").arg(QString::fromUtf8(t.cdc.c_str())));
 	});
 	connect(delBtn, &QPushButton::clicked, this, [&]() {
 		int r = table->currentRow();
@@ -3519,10 +3519,10 @@ void MainWindow::manageTemplates()
 		if (idx < 0 || idx >= (int)all.size()) return;
 		if (!all[idx].isCustom)
 		{
-			QMessageBox::information(&dlg, tr("提示"), tr("内置模板不可删除"));
+			QMessageBox::information(&dlg, tr("Hint"), tr("Built-in templates cannot be deleted"));
 			return;
 		}
-		if (QMessageBox::question(&dlg, tr("确认"), tr("确认删除模板 %1？").arg(QString::fromUtf8(all[idx].cdc.c_str()))) != QMessageBox::Yes)
+		if (QMessageBox::question(&dlg, tr("Confirm"), tr("Delete template %1?").arg(QString::fromUtf8(all[idx].cdc.c_str()))) != QMessageBox::Yes)
 			return;
 		for (size_t u = 0; u < m_userCdc.size(); ++u)
 		{
@@ -3532,7 +3532,7 @@ void MainWindow::manageTemplates()
 				m_userCdc.erase(m_userCdc.begin() + u);
 				saveUserTemplates();
 				fillTable(searchEdit->text());
-				log(tr("删除自定义 CDC 模板：%1").arg(name));
+				log(tr("Custom CDC template deleted: %1").arg(name));
 				break;
 			}
 		}

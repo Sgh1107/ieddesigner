@@ -1,5 +1,11 @@
 #include <QApplication>
 #include <QString>
+#include <QTranslator>
+#include <QCoreApplication>
+#include <QTreeWidget>
+#include <QtConcurrent>
+#include <QFutureWatcher>
+#include <QThread>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -158,6 +164,188 @@ static int RunOnline(const char* ip, int port, const char* ied)
 	ValidateOutcome v = ValidateSclFile(outPath, model.ied.name);
 	PrintModelStats("ONLINE", model, v);
 	return v.refsParsed ? 0 : 1;
+}
+
+#include "mainwindow.h"
+#include <QTimer>
+
+// 界面文案源码为英文，中文经 translate/ieddesigner_zh_CN.qm 加载
+static void SetupTranslation(QCoreApplication& app, QTranslator& translator)
+{
+	QString appDir = QCoreApplication::applicationDirPath();
+	QStringList dirs;
+	dirs << appDir << appDir + "/.." << QDir::currentPath();
+	for (const QString& dir : dirs)
+	{
+		// 在 <dir>/translate/ 下查找 ieddesigner_zh_CN.qm
+		if (translator.load(QString("ieddesigner_zh_CN"), dir + "/translate", QString("_")))
+		{
+			app.installTranslator(&translator);
+			return;
+		}
+	}
+}
+
+// --autopen：创建真实主窗口并定时触发打开流程（配合 cdb 抓闪退栈）
+static int RunAutoOpen(const char* filePath)
+{
+	int argc = 1;
+	char appname[] = "ieddesigner-autopen";
+	char* argv[] = { appname, 0 };
+	QApplication app(argc, argv);
+	QTranslator translator;
+	SetupTranslation(app, translator);
+	MainWindow w;
+	w.show();
+	QString file = QString::fromUtf8(filePath);
+	QTimer::singleShot(800, &w, [&w, file]() { w.openSclPath(file); });
+	QTimer::singleShot(8000, &app, &QApplication::quit);
+	return app.exec();
+}
+
+// --opentest：复刻 GUI 打开路径（两段式异步 + 事件循环 + 树构建），用于闪退排查
+struct OpenIedList
+{
+	std::vector<std::string> ieds;
+	std::string err;
+};
+
+struct OpenLoadResult
+{
+	bool ok;
+	std::string err;
+	SclModel model;
+
+	OpenLoadResult() : ok(false) {}
+};
+
+static int RunOpenTest(const char* filePath)
+{
+	int argc = 1;
+	char appname[] = "ieddesigner-opentest";
+	char* argv[] = { appname, 0 };
+	QApplication app(argc, argv);
+
+	QFutureWatcher<OpenIedList>* listWatcher = new QFutureWatcher<OpenIedList>();
+	OpenIedList listResult;
+	bool stage1 = false;
+	QString pick;
+	QObject::connect(listWatcher, &QFutureWatcher<OpenIedList>::finished, [&]() {
+		listResult = listWatcher->result();
+		listWatcher->deleteLater();
+		stage1 = true;
+		if (!listResult.ieds.empty())
+			pick = QString::fromUtf8(listResult.ieds[0].c_str());
+	});
+	listWatcher->setFuture(QtConcurrent::run([filePath]() {
+		OpenIedList r;
+		r.ieds = SclReader::ListIeds(filePath, r.err);
+		return r;
+	}));
+	int spins = 0;
+	while (!stage1 && spins < 3000)
+	{
+		QCoreApplication::processEvents();
+		QThread::msleep(5);
+		++spins;
+	}
+	printf("OPENTEST stage1 done=%d ieds=%d err=%s\n", stage1 ? 1 : 0,
+		(int)listResult.ieds.size(), listResult.err.c_str());
+	if (!stage1 || listResult.ieds.empty())
+		return 1;
+
+	QFutureWatcher<OpenLoadResult>* loadWatcher = new QFutureWatcher<OpenLoadResult>();
+	OpenLoadResult loadResult;
+	bool stage2 = false;
+	QObject::connect(loadWatcher, &QFutureWatcher<OpenLoadResult>::finished, [&]() {
+		loadResult = loadWatcher->result();
+		loadWatcher->deleteLater();
+		stage2 = true;
+	});
+	std::string spick = pick.toUtf8().constData();
+	loadWatcher->setFuture(QtConcurrent::run([filePath, spick]() {
+		OpenLoadResult r;
+		r.ok = SclReader::ReadSclFile(filePath, spick, r.model, r.err);
+		return r;
+	}));
+	spins = 0;
+	while (!stage2 && spins < 6000)
+	{
+		QCoreApplication::processEvents();
+		QThread::msleep(5);
+		++spins;
+	}
+	printf("OPENTEST stage2 done=%d ok=%d err=%s\n", stage2 ? 1 : 0, loadResult.ok ? 1 : 0, loadResult.err.c_str());
+	if (!stage2 || !loadResult.ok)
+		return 1;
+
+	// 复刻 buildTree 的关键遍历（QTreeWidget + daiSpecsFor + comm/控制块分组）
+	QTreeWidget tree;
+	tree.setColumnCount(2);
+	const SclIed& ied = loadResult.model.ied;
+	QTreeWidgetItem* iedItem = new QTreeWidgetItem(&tree, QStringList(QString::fromUtf8(ied.name.c_str())));
+	iedItem->setData(0, Qt::UserRole, "ied");
+	for (size_t li = 0; li < ied.lds.size(); ++li)
+	{
+		const SclLDevice& ld = ied.lds[li];
+		QTreeWidgetItem* ldItem = new QTreeWidgetItem(iedItem, QStringList(QString::fromUtf8(ld.inst.c_str())));
+		auto buildLn = [&](const SclLn& ln, int ni) {
+			QTreeWidgetItem* lnItem = new QTreeWidgetItem(ldItem, QStringList(QString::fromUtf8(ln.Name().c_str())));
+			for (size_t d = 0; d < ln.dos.size(); ++d)
+			{
+				const SclDo& dobj = ln.dos[d];
+				QTreeWidgetItem* doItem = new QTreeWidgetItem(lnItem, QStringList(QString::fromUtf8(dobj.name.c_str())));
+				std::vector<SclDaiSpec> specs = SclTemplates::DaiSpecsForDo(dobj.cdc, dobj.stValEnum, dobj.customDas, dobj.hasCustomDas);
+				for (size_t k = 0; k < specs.size(); ++k)
+				{
+					if (specs[k].path == "d") continue;
+					QTreeWidgetItem* daiItem = new QTreeWidgetItem(doItem, QStringList(QString::fromUtf8(specs[k].path.c_str())));
+					const std::string* val = dobj.FindDaiVal(specs[k].path);
+					daiItem->setText(1, val ? QString::fromUtf8(val->c_str()) : QString());
+				}
+			}
+			if (!ln.dataSets.empty())
+			{
+				QTreeWidgetItem* sec = new QTreeWidgetItem(lnItem, QStringList(QString("ds-sec")));
+				for (size_t s = 0; s < ln.dataSets.size(); ++s)
+					new QTreeWidgetItem(sec, QStringList(QString::fromUtf8(ln.dataSets[s].name.c_str())));
+			}
+			if (!ln.reports.empty() || !ln.gses.empty() || !ln.smvs.empty() || !ln.logs.empty() || !ln.settings.empty())
+			{
+				QTreeWidgetItem* sec = new QTreeWidgetItem(lnItem, QStringList(QString("cb-sec")));
+				for (size_t s = 0; s < ln.reports.size(); ++s)
+					new QTreeWidgetItem(sec, QStringList(QString::fromUtf8(ln.reports[s].name.c_str())));
+				for (size_t s = 0; s < ln.gses.size(); ++s)
+					new QTreeWidgetItem(sec, QStringList(QString::fromUtf8(ln.gses[s].name.c_str())));
+				for (size_t s = 0; s < ln.smvs.size(); ++s)
+					new QTreeWidgetItem(sec, QStringList(QString::fromUtf8(ln.smvs[s].name.c_str())));
+			}
+		};
+		buildLn(ld.ln0, -1);
+		for (size_t n = 0; n < ld.lns.size(); ++n)
+			buildLn(ld.lns[n], (int)n);
+	}
+	QTreeWidgetItem* commItem = new QTreeWidgetItem(&tree, QStringList(QString("comm")));
+	for (size_t s = 0; s < loadResult.model.subnets.size(); ++s)
+	{
+		QTreeWidgetItem* snItem = new QTreeWidgetItem(commItem, QStringList(QString::fromUtf8(loadResult.model.subnets[s].name.c_str())));
+		for (size_t c = 0; c < loadResult.model.subnets[s].aps.size(); ++c)
+		{
+			QTreeWidgetItem* capItem = new QTreeWidgetItem(snItem, QStringList(QString::fromUtf8(loadResult.model.subnets[s].aps[c].apName.c_str())));
+			for (size_t g = 0; g < loadResult.model.subnets[s].aps[c].gses.size(); ++g)
+				new QTreeWidgetItem(capItem, QStringList(QString::fromUtf8(loadResult.model.subnets[s].aps[c].gses[g].cbName.c_str())));
+			for (size_t v = 0; v < loadResult.model.subnets[s].aps[c].smvs.size(); ++v)
+				new QTreeWidgetItem(capItem, QStringList(QString::fromUtf8(loadResult.model.subnets[s].aps[c].smvs[v].cbName.c_str())));
+		}
+	}
+	tree.expandToDepth(3);
+	for (int i = 0; i < 20; ++i)
+	{
+		QCoreApplication::processEvents();
+		QThread::msleep(5);
+	}
+	printf("OPENTEST tree nodes=%d PASS\n", tree.topLevelItemCount());
+	return 0;
 }
 
 static int RunSkeleton(const char* outPath)
@@ -343,6 +531,10 @@ int main(int argc, char** argv)
 		return RunSelfTest(argv[2], argv[3]);
 	if (argc >= 3 && strcmp(argv[1], "--skeleton") == 0)
 		return RunSkeleton(argv[2]);
+	if (argc >= 3 && strcmp(argv[1], "--opentest") == 0)
+		return RunOpenTest(argv[2]);
+	if (argc >= 3 && strcmp(argv[1], "--autopen") == 0)
+		return RunAutoOpen(argv[2]);
 	if (argc >= 3 && strcmp(argv[1], "--roundtrip") == 0)
 		return RunRoundTrip(argv[2]);
 	if (argc >= 3 && strcmp(argv[1], "--jsonimport") == 0)
@@ -351,6 +543,9 @@ int main(int argc, char** argv)
 		return RunOnline(argv[2], atoi(argv[3]), argc >= 5 ? argv[4] : "");
 
 	QApplication app(argc, argv);
+	QTranslator translator;
+	SetupTranslation(app, translator);
+
 	FreeConsole();
 	MainWindow w;
 	w.show();

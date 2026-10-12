@@ -177,14 +177,14 @@ static const SclDoT kSgcb[] = {
 };
 
 static const SclLnT kLnTable[] = {
-	{ "LLN0", "逻辑节点零", kLln0, sizeof(kLln0) / sizeof(kLln0[0]) },
-	{ "LPHD", "物理设备信息", kLphd, sizeof(kLphd) / sizeof(kLphd[0]) },
-	{ "MMXU", "三相测量", kMmxu, sizeof(kMmxu) / sizeof(kMmxu[0]) },
-	{ "CSWI", "开关控制器", kCswi, sizeof(kCswi) / sizeof(kCswi[0]) },
-	{ "XCBR", "断路器", kXcbr, sizeof(kXcbr) / sizeof(kXcbr[0]) },
-	{ "XSWI", "刀闸/接地刀", kXswi, sizeof(kXswi) / sizeof(kXswi[0]) },
-	{ "GGIO", "通用IO", kGgio, sizeof(kGgio) / sizeof(kGgio[0]) },
-	{ "SGCB", "定值区控制", kSgcb, sizeof(kSgcb) / sizeof(kSgcb[0]) }
+	{ "LLN0", "Logical node zero", kLln0, sizeof(kLln0) / sizeof(kLln0[0]) },
+	{ "LPHD", "Physical device information", kLphd, sizeof(kLphd) / sizeof(kLphd[0]) },
+	{ "MMXU", "Three-phase measurement", kMmxu, sizeof(kMmxu) / sizeof(kMmxu[0]) },
+	{ "CSWI", "Switch controller", kCswi, sizeof(kCswi) / sizeof(kCswi[0]) },
+	{ "XCBR", "Circuit breaker", kXcbr, sizeof(kXcbr) / sizeof(kXcbr[0]) },
+	{ "XSWI", "Disconnector/earthing switch", kXswi, sizeof(kXswi) / sizeof(kXswi[0]) },
+	{ "GGIO", "Generic IO", kGgio, sizeof(kGgio) / sizeof(kGgio[0]) },
+	{ "SGCB", "Setting group control", kSgcb, sizeof(kSgcb) / sizeof(kSgcb[0]) }
 };
 
 namespace SclTemplates

@@ -39,6 +39,10 @@ private slots:
 	void onTreeContextMenu(const QPoint& pos);
 	void onXmlPreview();
 
+public:
+	// 供自动化测试驱动（--autopen）
+	void openSclPath(const QString& path);
+
 private:
 	void buildTree();
 	QTreeWidgetItem* addNode(QTreeWidgetItem* parent, const QString& text,
@@ -57,7 +61,6 @@ private:
 	void setupMenus();
 	void rebuildRecentMenu();
 	void pushRecentFile(const QString& path);
-	void openSclPath(const QString& path);
 	void setBusy(bool busy);
 	void addHistoryItem();
 	void deleteHistoryItem(int idx);
@@ -117,7 +120,6 @@ private:
 
 	std::vector<SclCdcTemplate> m_userCdc;
 	QAction* m_actNew;
-	QAction* m_actOpen;
 	QAction* m_actSave;
 	QAction* m_actExportIcd;
 	QAction* m_actTemplates;
