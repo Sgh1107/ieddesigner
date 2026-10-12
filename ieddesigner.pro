@@ -3,7 +3,7 @@ LANGUAGE	= C++
 
 TARGET = ieddesigner
 
-QT	+= core gui widgets xml
+QT	+= core gui widgets xml concurrent
 
 CONFIG	+= c++17 warn_off console
 

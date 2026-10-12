@@ -160,10 +160,46 @@ static int RunOnline(const char* ip, int port, const char* ied)
 	return v.refsParsed ? 0 : 1;
 }
 
+static int RunSkeleton(const char* outPath)
+{
+	SclModel model = MakeNewModel();
+	std::string err;
+	std::string text = SclWriter::BuildSclText(model, true);
+	if (!SclWriter::WriteFile(text, outPath, err))
+	{
+		printf("SKELETON FAIL write: %s\n", err.c_str());
+		return 1;
+	}
+	ValidateOutcome v = ValidateSclFile(outPath, model.ied.name);
+	PrintModelStats("SKELETON", model, v);
+	printf("SKELETON loaderOk=%d err=%s\n", v.loaderOk ? 1 : 0, v.errorText.c_str());
+
+	// 读写回环：再次解析生成的文件，确认新增字段完整保留
+	SclModel reloaded;
+	if (!SclReader::ReadSclFile(outPath, model.ied.name, reloaded, err))
+	{
+		printf("SKELETON FAIL reread: %s\n", err.c_str());
+		return 1;
+	}
+	int diff = 0;
+	if (reloaded.ied.manufacturer != model.ied.manufacturer) diff++;
+	if (reloaded.ied.type != model.ied.type) diff++;
+	if (reloaded.ied.services.size() != model.ied.services.size()) diff++;
+	if (reloaded.ied.pParams.size() != model.ied.pParams.size()) diff++;
+	if (reloaded.ied.serverTimeout != model.ied.serverTimeout) diff++;
+	if (reloaded.ied.authentication != model.ied.authentication) diff++;
+	if (!reloaded.ied.lds.empty() && reloaded.ied.lds[0].comment != model.ied.lds[0].comment) diff++;
+	printf("SKELETON reread diff=%d services=%d pParams=%d\n", diff,
+		(int)reloaded.ied.services.size(), (int)reloaded.ied.pParams.size());
+	return (v.refsParsed && diff == 0) ? 0 : 1;
+}
+
 int main(int argc, char** argv)
 {
 	if (argc >= 4 && strcmp(argv[1], "--selftest") == 0)
 		return RunSelfTest(argv[2], argv[3]);
+	if (argc >= 3 && strcmp(argv[1], "--skeleton") == 0)
+		return RunSkeleton(argv[2]);
 	if (argc >= 3 && strcmp(argv[1], "--roundtrip") == 0)
 		return RunRoundTrip(argv[2]);
 	if (argc >= 3 && strcmp(argv[1], "--jsonimport") == 0)

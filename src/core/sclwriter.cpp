@@ -28,6 +28,22 @@ namespace SclWriter
 		return out;
 	}
 
+	// 注释文本清理：剔除 XML 注释中不允许的字符，避免干扰简易解析器
+	static std::string SanitizeComment(const std::string& c)
+	{
+		std::string out;
+		for (size_t i = 0; i < c.size(); ++i)
+		{
+			char ch = c[i];
+			if (ch == '<') out += "（";
+			else if (ch == '>') out += "）";
+			else if (ch == '&') out += "＆";
+			else if (ch == '-' && i + 1 < c.size() && c[i + 1] == '-') { out += "－－"; ++i; }
+			else out += ch;
+		}
+		return out;
+	}
+
 	static std::string DoTypeId(const std::string& cdc, const std::string& stValEnum)
 	{
 		std::string id = cdc + "_";
@@ -54,6 +70,18 @@ namespace SclWriter
 		text += "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + nl;
 		text += "<SCL xmlns=\"http://www.iec.ch/61850/2003/SCL\">" + nl;
 		text += "  <Header id=\"" + XmlEscape(model.headerId) + "\" nameStructure=\"IEDName\">" + nl;
+		if (!model.history.empty())
+		{
+			text += "    <History>" + nl;
+			for (size_t h = 0; h < model.history.size(); ++h)
+			{
+				const SclHistoryItem& item = model.history[h];
+				text += "      <Hitem version=\"" + XmlEscape(item.version) + "\" what=\"" + XmlEscape(item.what) +
+					"\" who=\"" + XmlEscape(item.who) + "\" when=\"" + XmlEscape(item.when) +
+					"\" why=\"" + XmlEscape(item.why) + "\" />" + nl;
+			}
+			text += "    </History>" + nl;
+		}
 		text += "  </Header>" + nl;
 
 		if (withCommunication)
@@ -64,10 +92,20 @@ namespace SclWriter
 			text += "    <SubNetwork name=\"subnetwork1\" type=\"8-MMS\">" + nl;
 			text += "      <ConnectedAP iedName=\"" + XmlEscape(ied.name) + "\" apName=\"" + XmlEscape(ied.apName) + "\">" + nl;
 			text += "        <Address>" + nl;
-			text += "          <P type=\"IP\">" + XmlEscape(ied.ip) + "</P>" + nl;
-			text += "          <P type=\"IP-SUBNET\">" + XmlEscape(ied.ipSubnet) + "</P>" + nl;
-			text += "          <P type=\"IP-GATEWAY\">" + XmlEscape(ied.ipGateway) + "</P>" + nl;
-			text += "          <P type=\"MMS-Port\">" + std::string(portBuf) + "</P>" + nl;
+			if (!ied.pParams.empty())
+			{
+				// 读取文件时保序保存的全部地址参数
+				for (size_t p = 0; p < ied.pParams.size(); ++p)
+					text += "          <P type=\"" + XmlEscape(ied.pParams[p].first) + "\">" +
+						XmlEscape(ied.pParams[p].second) + "</P>" + nl;
+			}
+			else
+			{
+				text += "          <P type=\"IP\">" + XmlEscape(ied.ip) + "</P>" + nl;
+				text += "          <P type=\"IP-SUBNET\">" + XmlEscape(ied.ipSubnet) + "</P>" + nl;
+				text += "          <P type=\"IP-GATEWAY\">" + XmlEscape(ied.ipGateway) + "</P>" + nl;
+				text += "          <P type=\"MMS-Port\">" + std::string(portBuf) + "</P>" + nl;
+			}
 			text += "        </Address>" + nl;
 			text += "      </ConnectedAP>" + nl;
 			text += "    </SubNetwork>" + nl;
@@ -118,14 +156,47 @@ namespace SclWriter
 			}
 		}
 
-		text += "  <IED name=\"" + XmlEscape(ied.name) + "\">" + nl;
+		text += "  <IED name=\"" + XmlEscape(ied.name) + "\"";
+		if (!ied.desc.empty())
+			text += " desc=\"" + XmlEscape(ied.desc) + "\"";
+		if (!ied.manufacturer.empty())
+			text += " manufacturer=\"" + XmlEscape(ied.manufacturer) + "\"";
+		if (!ied.type.empty())
+			text += " type=\"" + XmlEscape(ied.type) + "\"";
+		text += ">" + nl;
+
+		if (!ied.services.empty())
+		{
+			text += "    <Services";
+			if (!ied.servicesNameLength.empty())
+				text += " nameLength=\"" + XmlEscape(ied.servicesNameLength) + "\"";
+			text += ">" + nl;
+			for (size_t s = 0; s < ied.services.size(); ++s)
+				text += "      <" + ied.services[s] + "/>" + nl;
+			text += "    </Services>" + nl;
+		}
+
 		text += "    <AccessPoint name=\"" + XmlEscape(ied.apName) + "\">" + nl;
-		text += "      <Server>" + nl;
+		{
+			std::string serverOpen = "      <Server";
+			if (ied.serverTimeout >= 0)
+			{
+				char timeoutBuf[32];
+				sprintf(timeoutBuf, "%d", ied.serverTimeout);
+				serverOpen += " timeout=\"" + std::string(timeoutBuf) + "\"";
+			}
+			serverOpen += ">" + nl;
+			text += serverOpen;
+			if (ied.authentication)
+				text += "        <Authentication/>" + nl;
+		}
 
 		for (size_t li = 0; li < ied.lds.size(); ++li)
 		{
 			const SclLDevice& ld = ied.lds[li];
 			text += "        <LDevice inst=\"" + XmlEscape(ld.inst) + "\">" + nl;
+			if (!ld.comment.empty())
+				text += "          <!--" + SanitizeComment(ld.comment) + "-->" + nl;
 
 			std::vector<const SclLn*> allLns;
 			allLns.push_back(&ld.ln0);
@@ -143,6 +214,8 @@ namespace SclWriter
 					open = "          <LN lnClass=\"" + XmlEscape(ln.lnClass) + "\" inst=\"" + XmlEscape(ln.inst) +
 					       "\" prefix=\"" + XmlEscape(ln.prefix) + "\" lnType=\"" + lnTypeId + "\">";
 				text += open + nl;
+				if (!ln.comment.empty())
+					text += "            <!--" + SanitizeComment(ln.comment) + "-->" + nl;
 				for (size_t d = 0; d < ln.dos.size(); ++d)
 				{
 					const SclDo& dobj = ln.dos[d];
@@ -164,6 +237,25 @@ namespace SclWriter
 
 		text += "      </Server>" + nl;
 		text += "    </AccessPoint>" + nl;
+
+		// 附加接入点
+		for (size_t a = 0; a < ied.extraAps.size(); ++a)
+		{
+			const SclAccessPoint& extra = ied.extraAps[a];
+			if (extra.name.empty())
+				continue;
+			if (!extra.serverAt.empty())
+			{
+				text += "    <AccessPoint name=\"" + XmlEscape(extra.name) + "\">" + nl;
+				text += "      <ServerAt apName=\"" + XmlEscape(extra.serverAt) + "\" />" + nl;
+				text += "    </AccessPoint>" + nl;
+			}
+			else
+			{
+				text += "    <AccessPoint name=\"" + XmlEscape(extra.name) + "\" />" + nl;
+			}
+		}
+
 		text += "  </IED>" + nl;
 
 		text += "  <DataTypeTemplates>" + nl;

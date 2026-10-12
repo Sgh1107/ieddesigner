@@ -255,6 +255,20 @@ namespace SclReader
 		if (isLn0)
 			ln.inst = "";
 
+		// LN 注释
+		{
+			QDomNode cnode = lnElem.firstChild();
+			while (!cnode.isNull())
+			{
+				if (cnode.isComment())
+				{
+					ln.comment = cnode.toComment().data().toUtf8().constData();
+					break;
+				}
+				cnode = cnode.nextSibling();
+			}
+		}
+
 		std::map<std::string, std::string> doiDesc;
 		std::vector<std::string> doiOrder;
 		std::vector<QDomElement> dois = ChildrenByLocalName(lnElem, "DOI");
@@ -359,6 +373,28 @@ namespace SclReader
 
 		model.ied.name = iedName;
 
+		// Header 修订历史
+		QDomElement headerElem = ChildByLocalName(root, "Header");
+		if (!headerElem.isNull())
+		{
+			QDomElement hist = ChildByLocalName(headerElem, "History");
+			if (!hist.isNull())
+			{
+				std::vector<QDomElement> hitems = ChildrenByLocalName(hist, "Hitem");
+				for (size_t i = 0; i < hitems.size(); ++i)
+				{
+					SclHistoryItem item;
+					item.version = hitems[i].attribute("version").toUtf8().constData();
+					item.what = hitems[i].attribute("what").toUtf8().constData();
+					item.who = hitems[i].attribute("who").toUtf8().constData();
+					item.when = hitems[i].attribute("when").toUtf8().constData();
+					item.why = hitems[i].attribute("why").toUtf8().constData();
+					model.history.push_back(item);
+				}
+			}
+		}
+
+		// Communication 地址参数（有序保存全部 P 项，同时填充惯用字段）
 		QDomElement comm = ChildByLocalName(root, "Communication");
 		bool apFound = false;
 		if (!comm.isNull())
@@ -367,7 +403,7 @@ namespace SclReader
 			for (size_t s = 0; s < subnets.size() && !apFound; ++s)
 			{
 				std::vector<QDomElement> caps = ChildrenByLocalName(subnets[s], "ConnectedAP");
-				for (size_t c = 0; c < caps.size(); ++c)
+				for (size_t c = 0; c < caps.size() && !apFound; ++c)
 				{
 					if (caps[c].attribute("iedName").toUtf8().constData() != iedName)
 						continue;
@@ -381,6 +417,7 @@ namespace SclReader
 					{
 						std::string type = ps[p].attribute("type").toUtf8().constData();
 						std::string value = ps[p].text().toUtf8().constData();
+						model.ied.pParams.push_back(std::make_pair(type, value));
 						if (type == "IP") model.ied.ip = value;
 						else if (type == "IP-SUBNET") model.ied.ipSubnet = value;
 						else if (type == "IP-GATEWAY") model.ied.ipGateway = value;
@@ -393,19 +430,68 @@ namespace SclReader
 		if (model.ied.apName.empty())
 			model.ied.apName = "accessPoint1";
 
-		QDomElement ap = ChildByLocalName(iedElem, "AccessPoint");
-		if (!ap.isNull() && !ap.attribute("name").isEmpty())
-			model.ied.apName = ap.attribute("name").toUtf8().constData();
+		// IED 属性
+		model.ied.desc = iedElem.attribute("desc").toUtf8().constData();
+		model.ied.manufacturer = iedElem.attribute("manufacturer").toUtf8().constData();
+		model.ied.type = iedElem.attribute("type").toUtf8().constData();
+
+		// IED 服务能力声明
+		QDomElement services = ChildByLocalName(iedElem, "Services");
+		if (!services.isNull())
+		{
+			model.ied.servicesNameLength = services.attribute("nameLength").toUtf8().constData();
+			QDomNode snode = services.firstChild();
+			while (!snode.isNull())
+			{
+				if (snode.isElement())
+					model.ied.services.push_back(snode.toElement().tagName().toUtf8().constData());
+				snode = snode.nextSibling();
+			}
+		}
+
+		// 接入点：第一个含 Server 的 AccessPoint 为主接入点，其余进入 extraAps
+		std::vector<QDomElement> aps = ChildrenByLocalName(iedElem, "AccessPoint");
+		QDomElement ap;
+		QDomElement server;
+		for (size_t i = 0; i < aps.size(); ++i)
+		{
+			std::string apNameAttr = aps[i].attribute("name").toUtf8().constData();
+			QDomElement apServer = ChildByLocalName(aps[i], "Server");
+			if (server.isNull() && !apServer.isNull())
+			{
+				ap = aps[i];
+				server = apServer;
+				if (!apNameAttr.empty())
+					model.ied.apName = apNameAttr;
+			}
+			else
+			{
+				SclAccessPoint extra;
+				extra.name = apNameAttr;
+				QDomElement serverAt = ChildByLocalName(aps[i], "ServerAt");
+				if (!serverAt.isNull())
+					extra.serverAt = serverAt.attribute("apName").toUtf8().constData();
+				model.ied.extraAps.push_back(extra);
+			}
+		}
 		if (ap.isNull())
 		{
 			errorText = "access point not found in ied";
 			return false;
 		}
-		QDomElement server = ChildByLocalName(ap, "Server");
 		if (server.isNull())
 		{
 			errorText = "server not found in access point";
 			return false;
+		}
+
+		// Server 属性
+		{
+			std::string timeoutAttr = server.attribute("timeout").toUtf8().constData();
+			if (!timeoutAttr.empty())
+				model.ied.serverTimeout = atoi(timeoutAttr.c_str());
+			if (!ChildByLocalName(server, "Authentication").isNull())
+				model.ied.authentication = true;
 		}
 
 		std::vector<QDomElement> lds = ChildrenByLocalName(server, "LDevice");
@@ -416,6 +502,18 @@ namespace SclReader
 			ld.ldName = lds[i].attribute("ldName").toUtf8().constData();
 			if (ld.ldName.empty())
 				ld.ldName = ld.inst;
+
+			// LDevice 注释
+			QDomNode cnode = lds[i].firstChild();
+			while (!cnode.isNull())
+			{
+				if (cnode.isComment())
+				{
+					ld.comment = cnode.toComment().data().toUtf8().constData();
+					break;
+				}
+				cnode = cnode.nextSibling();
+			}
 
 			QDomElement ln0Elem = ChildByLocalName(lds[i], "LN0");
 			if (!ln0Elem.isNull())

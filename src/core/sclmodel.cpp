@@ -14,6 +14,60 @@ SclIed::SclIed()
 	ipSubnet = "255.255.255.0";
 	ipGateway = "192.168.31.1";
 	port = 102;
+	serverTimeout = -1;
+	authentication = false;
+}
+
+SclModel MakeNewModel()
+{
+	SclModel m;
+	m.ied.name = "TEMPLATE";
+	m.ied.desc = "TEMPLATE";
+	m.ied.manufacturer = "newfert";
+	m.ied.type = "RTUType";
+	m.ied.apName = "accessPoint1";
+	m.ied.serverTimeout = 30;
+	m.ied.authentication = true;
+	m.ied.servicesNameLength = "64";
+	const char* services[] = {
+		"ClientServices", "DynAssociation", "GetDirectory",
+		"GetDataObjectDefinition", "GetCBValues", "DataObjectDirectory",
+		"GetDataSetValue", "SetDataSetValue", "DataSetDirectory", "ReadWrite"
+	};
+	for (size_t i = 0; i < sizeof(services) / sizeof(services[0]); ++i)
+		m.ied.services.push_back(services[i]);
+
+	// 通信参数（对齐 config_new.cid 规格，另加 MMS-Port）
+	m.ied.pParams.push_back(std::make_pair("OSI-AP-Title", "1,1,9999,1"));
+	m.ied.pParams.push_back(std::make_pair("OSI-AE-Qualifier", "12"));
+	m.ied.pParams.push_back(std::make_pair("OSI-PSEL", "00000001"));
+	m.ied.pParams.push_back(std::make_pair("OSI-SSEL", "0001"));
+	m.ied.pParams.push_back(std::make_pair("OSI-TSEL", "0001"));
+	m.ied.pParams.push_back(std::make_pair("IP", "192.168.1.100"));
+	m.ied.pParams.push_back(std::make_pair("IP-SUBNET", "255.255.255.0"));
+	m.ied.pParams.push_back(std::make_pair("IP-GATEWAY", "192.168.1.1"));
+	m.ied.pParams.push_back(std::make_pair("MMS-Port", "102"));
+	m.ied.ip = "192.168.1.100";
+	m.ied.ipSubnet = "255.255.255.0";
+	m.ied.ipGateway = "192.168.1.1";
+	m.ied.port = 102;
+
+	SclLDevice ld;
+	ld.inst = "LD1";
+	ld.ldName = "LD1";
+	ld.desc = "逻辑设备1";
+	ld.comment = "新建逻辑设备，可在属性页修改";
+
+	ld.ln0 = SclTemplates::MakeLn("LLN0");
+	ld.ln0.inst = "";
+
+	SclLn lphd = SclTemplates::MakeLn("LPHD");
+	lphd.inst = "1";
+	lphd.desc = "物理装置信息";
+
+	ld.lns.push_back(lphd);
+	m.ied.lds.push_back(ld);
+	return m;
 }
 
 SclModel::SclModel()

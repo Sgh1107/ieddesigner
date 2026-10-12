@@ -3,8 +3,13 @@
 build*
 bin*
 
+Makefile
 Makefile.*
 
+export/
+
+*.rt.cid
 
 .workbuddy
 ieddesigner.pro.user
+docs
