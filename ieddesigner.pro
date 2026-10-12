@@ -8,13 +8,11 @@ QT	+= core gui widgets xml concurrent svg
 RESOURCES += src/resources/icons.qrc
 
 # 界面翻译：源码为英文，中文经 translate/ieddesigner_zh_CN.ts -> .qm 加载
+# .qm 同时打包进 qrc 资源（部署免拷贝），运行时可被 exe 目录 translate/ 下的外部 .qm 覆盖
 TRANSLATIONS += translate/ieddesigner_zh_CN.ts
 
 # 应用图标：嵌入 exe 资源（资源管理器/任务栏显示）
 RC_ICONS = src/resources/app.ico
-
-# 构建后把 .qm 复制到可执行目录 translate/，运行时自动加载
-win32:QMAKE_POST_LINK += $${QMAKE_COPY_DIR} $$shell_path($$PWD/translate) $$shell_path($$OUT_PWD/bin/translate) $$escape_expand(\\n\\t)
 
 CONFIG	+= c++17 warn_off console
 

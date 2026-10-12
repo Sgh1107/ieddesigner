@@ -3,6 +3,7 @@
 #include <QTranslator>
 #include <QCoreApplication>
 #include <QTreeWidget>
+#include <QGridLayout>
 #include <QtConcurrent>
 #include <QFutureWatcher>
 #include <QThread>
@@ -177,13 +178,16 @@ static void SetupTranslation(QCoreApplication& app, QTranslator& translator)
 	dirs << appDir << appDir + "/.." << QDir::currentPath();
 	for (const QString& dir : dirs)
 	{
-		// 在 <dir>/translate/ 下查找 ieddesigner_zh_CN.qm
+		// 在 <dir>/translate/ 下查找 ieddesigner_zh_CN.qm（外部文件优先，便于替换/扩展）
 		if (translator.load(QString("ieddesigner_zh_CN"), dir + "/translate", QString("_")))
 		{
 			app.installTranslator(&translator);
 			return;
 		}
 	}
+	// 回退：使用编译进资源（qrc）的翻译，部署无需拷贝
+	if (translator.load(QString("ieddesigner_zh_CN"), QString(":/i18n"), QString("_")))
+		app.installTranslator(&translator);
 }
 
 // --autopen：创建真实主窗口并定时触发打开流程（配合 cdb 抓闪退栈）
@@ -197,8 +201,44 @@ static int RunAutoOpen(const char* filePath)
 	SetupTranslation(app, translator);
 	MainWindow w;
 	w.show();
+	w.raise();
+	w.activateWindow();
+	QTimer::singleShot(1500, &w, [&w]() { w.raise(); w.activateWindow(); });
+	QTimer::singleShot(3500, &w, [&w]() { w.raise(); w.activateWindow(); });
 	QString file = QString::fromUtf8(filePath);
 	QTimer::singleShot(800, &w, [&w, file]() { w.openSclPath(file); });
+	// 2.0s 选中 DO（3 行属性），3.2s 选中 DAI（4 行属性）——复现“先 DO 后 DAI”的切换序列
+	QTimer::singleShot(2000, &w, [&w]() {
+		if (QTreeWidget* t = w.findChild<QTreeWidget*>())
+		{
+			QTreeWidgetItem* it = t->topLevelItem(0);
+			if (it) it = it->child(0);                                   // ap:0
+			if (it) it = it->child(0);                                   // server
+			if (it) it = it->child(0);                                   // ld:0
+			if (it) it = it->child(0);                                   // ln0
+			if (it && it->childCount() > 0) it = it->child(0);           // DO
+			if (it) t->setCurrentItem(it);
+		}
+	});
+	QTimer::singleShot(3200, &w, [&w]() {
+		if (QTreeWidget* t = w.findChild<QTreeWidget*>())
+		{
+			QTreeWidgetItem* it = t->topLevelItem(0);
+			if (it) it = it->child(0);                                   // ap:0
+			if (it) it = it->child(0);                                   // server
+			if (it) it = it->child(0);                                   // ld:0
+			if (it) it = it->child(0);                                   // ln0
+			if (it && it->childCount() > 0) it = it->child(0);           // DO
+			if (it && it->childCount() > 0) it = it->child(0);           // DAI
+			if (it) t->setCurrentItem(it);
+		}
+		if (QGridLayout* g = w.findChild<QGridLayout*>())
+		{
+			printf("GRID rows=%d\n", g->rowCount());
+			for (int r = 0; r < g->rowCount(); ++r)
+				printf("  row %d h=%d stretch=%d\n", r, g->cellRect(r, 0).height(), g->rowStretch(r));
+		}
+	});
 	QTimer::singleShot(8000, &app, &QApplication::quit);
 	return app.exec();
 }

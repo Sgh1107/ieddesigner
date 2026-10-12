@@ -9,8 +9,8 @@
 
 class QTreeWidget;
 class QTreeWidgetItem;
-class QTableWidget;
-class QTableWidgetItem;
+class QScrollArea;
+class QGridLayout;
 class QPlainTextEdit;
 class QAction;
 class QMenu;
@@ -35,7 +35,6 @@ private slots:
 	void onOnlineRead();
 	void onOnlineFinished();
 	void onTreeSelectionChanged();
-	void onPropChanged(QTableWidgetItem* item);
 	void onTreeContextMenu(const QPoint& pos);
 	void onXmlPreview();
 
@@ -45,6 +44,9 @@ public:
 
 private:
 	void buildTree();
+	static void collectExpandedPaths(QTreeWidgetItem* item, QSet<QString>& out);
+	QTreeWidgetItem* restoreTreeState(QTreeWidgetItem* item, const QSet<QString>& expanded,
+		const QString& selectPath) const;
 	QTreeWidgetItem* addNode(QTreeWidgetItem* parent, const QString& text,
 		const QString& detail, const QString& path);
 	void populateProps(const QString& path);
@@ -126,7 +128,8 @@ private:
 	QAction* m_actXml;
 
 	QTreeWidget* m_tree;
-	QTableWidget* m_props;
+	QScrollArea* m_propScroll;
+	QGridLayout* m_propGrid;
 	QPlainTextEdit* m_log;
 	QAction* m_jsonAct;
 	QAction* m_onlineAct;

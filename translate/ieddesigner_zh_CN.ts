@@ -496,23 +496,23 @@
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="652"/>
         <source>timeout</source>
-        <translation type="unfinished"></translation>
+        <translation>超时</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="652"/>
         <source>Authentication</source>
-        <translation type="unfinished"></translation>
+        <translation>认证</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="662"/>
         <location filename="../src/ui/mainwindow.cpp" line="1754"/>
         <source>Instance</source>
-        <translation type="unfinished"></translation>
+        <translation>实例</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="662"/>
         <source>LDName</source>
-        <translation type="unfinished"></translation>
+        <translation>LD 名称</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="662"/>
@@ -523,7 +523,7 @@
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="678"/>
         <source>Prefix</source>
-        <translation type="unfinished"></translation>
+        <translation>前缀</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="678"/>
@@ -534,7 +534,7 @@
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="678"/>
         <source>Inst</source>
-        <translation type="unfinished"></translation>
+        <translation>实例号</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="690"/>
@@ -629,28 +629,28 @@
         <location filename="../src/ui/mainwindow.cpp" line="837"/>
         <location filename="../src/ui/mainwindow.cpp" line="846"/>
         <source>confRev</source>
-        <translation type="unfinished"></translation>
+        <translation>配置版本</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="815"/>
         <location filename="../src/ui/mainwindow.cpp" line="857"/>
         <source>intgPd(ms)</source>
-        <translation type="unfinished"></translation>
+        <translation>完整性周期(ms)</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="815"/>
         <source>bufTime</source>
-        <translation type="unfinished"></translation>
+        <translation>缓冲时间</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="816"/>
         <source>buffered</source>
-        <translation type="unfinished"></translation>
+        <translation>缓冲</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="816"/>
         <source>indexed</source>
-        <translation type="unfinished"></translation>
+        <translation>索引</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="816"/>
@@ -764,13 +764,13 @@
         <location filename="../src/ui/mainwindow.cpp" line="857"/>
         <location filename="../src/ui/mainwindow.cpp" line="2848"/>
         <source>logName</source>
-        <translation type="unfinished"></translation>
+        <translation>日志名</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="869"/>
         <location filename="../src/ui/mainwindow.cpp" line="2881"/>
         <source>numOfSG</source>
-        <translation type="unfinished"></translation>
+        <translation>定值组数</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="878"/>

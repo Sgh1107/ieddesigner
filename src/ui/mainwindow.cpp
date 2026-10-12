@@ -43,12 +43,26 @@
 #include <QJsonObject>
 #include <QTabWidget>
 #include <QToolBar>
+#include <QScrollArea>
+#include <QGridLayout>
+#include <QSet>
 #include <QStringList>
 #include <QTreeWidget>
 #include <cctype>
 
 namespace
 {
+	// 属性面板编辑器类型
+	enum PropEditorKind
+	{
+		EditNone,    // 只读
+		EditText,    // 单行文本
+		EditBool,    // true/false 下拉
+		EditEnum,    // 枚举可选值下拉
+		EditInt,     // 整数（带校验器）
+		EditFloat    // 浮点（带校验器）
+	};
+
 	// 应用级剪贴板（IED/LD/LN 复制粘贴，进程内共享）
 	SclLDevice g_clipLd;
 	bool g_hasClipLd = false;
@@ -140,10 +154,21 @@ MainWindow::MainWindow(QWidget* parent)
 	setCentralWidget(m_tree);
 
 	QDockWidget* propDock = new QDockWidget(tr("Properties"), this);
-	m_props = new QTableWidget(this);
-	m_props->setColumnCount(2);
-	m_props->setHorizontalHeaderLabels(QStringList() << tr("Properties") << tr("Value"));
-	propDock->setWidget(m_props);
+	propDock->setObjectName("propDock");
+	m_propScroll = new QScrollArea(this);
+	m_propScroll->setWidgetResizable(true);
+	m_propScroll->setObjectName("propScroll");
+	m_propScroll->setFrameShape(QFrame::NoFrame);
+	QWidget* propPanel = new QWidget(m_propScroll);
+	propPanel->setObjectName("propPanel");
+	m_propGrid = new QGridLayout(propPanel);
+	m_propGrid->setContentsMargins(16, 16, 16, 16);
+	m_propGrid->setHorizontalSpacing(10);
+	m_propGrid->setVerticalSpacing(14);
+	m_propGrid->setColumnStretch(1, 1);
+	m_propScroll->setWidget(propPanel);
+	propDock->setWidget(m_propScroll);
+	propDock->setMinimumWidth(380);
 	addDockWidget(Qt::LeftDockWidgetArea, propDock);
 
 	QDockWidget* logDock = new QDockWidget(tr("Log"), this);
@@ -159,7 +184,22 @@ MainWindow::MainWindow(QWidget* parent)
 
 	connect(m_tree, SIGNAL(itemSelectionChanged()), this, SLOT(onTreeSelectionChanged()));
 	connect(m_tree, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onTreeContextMenu(const QPoint&)));
-	connect(m_props, SIGNAL(itemChanged(QTableWidgetItem*)), this, SLOT(onPropChanged(QTableWidgetItem*)));
+
+	// 属性面板样式：圆角输入框/下拉框（对齐 yx-ied-designer 的表单观感）
+	setStyleSheet(QString(
+		"#propScroll, #propPanel { background: #FFFFFF; }"
+		"#propPanel QLabel { color: #37414E; background: transparent; }"
+		"#propPanel QLineEdit { border: 1px solid #D9D9D9; border-radius: 6px;"
+		"  padding: 4px 8px; min-height: 22px; background: #FFFFFF; }"
+		"#propPanel QLineEdit:read-only { background: #F5F6F8; color: #8A929E; border-color: #E8ECF1; }"
+		"#propPanel QComboBox { border: 1px solid #D9D9D9; border-radius: 6px;"
+		"  padding: 4px 26px 4px 8px; min-height: 22px; background: #FFFFFF; }"
+		"#propPanel QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: top right;"
+		"  width: 24px; border: none; background: transparent; }"
+		"#propPanel QComboBox::down-arrow { image: url(:/icons/chevron-down.svg); width: 12px; height: 12px; }"
+		"#propScroll QScrollBar:vertical { background: transparent; width: 8px; margin: 0; }"
+		"#propScroll QScrollBar::handle:vertical { background: #D5DBE4; border-radius: 4px; min-height: 30px; }"
+	));
 
 	m_model = MakeNewModel();
 	buildTree();
@@ -349,8 +389,43 @@ QTreeWidgetItem* MainWindow::addNode(QTreeWidgetItem* parent, const QString& tex
 	return item;
 }
 
+void MainWindow::collectExpandedPaths(QTreeWidgetItem* item, QSet<QString>& out)
+{
+	for (int i = 0; i < item->childCount(); ++i)
+	{
+		QTreeWidgetItem* c = item->child(i);
+		if (c->isExpanded())
+			out.insert(c->data(0, Qt::UserRole).toString());
+		collectExpandedPaths(c, out);
+	}
+}
+
+// 恢复展开状态；若遇到选中路径的节点则返回它（供 setCurrentItem）
+QTreeWidgetItem* MainWindow::restoreTreeState(QTreeWidgetItem* item, const QSet<QString>& expanded,
+	const QString& selectPath) const
+{
+	for (int i = 0; i < item->childCount(); ++i)
+	{
+		QTreeWidgetItem* c = item->child(i);
+		QString p = c->data(0, Qt::UserRole).toString();
+		if (expanded.contains(p))
+			c->setExpanded(true);
+		if (!selectPath.isEmpty() && p == selectPath)
+			return c;
+		QTreeWidgetItem* r = restoreTreeState(c, expanded, selectPath);
+		if (r)
+			return r;
+	}
+	return 0;
+}
+
 void MainWindow::buildTree()
 {
+	// 保留展开状态与当前选中节点（避免属性修改后整树折叠）
+	QSet<QString> expanded;
+	collectExpandedPaths(m_tree->invisibleRootItem(), expanded);
+	QString selectPath = m_currentPath;
+
 	m_tree->clear();
 	const SclIed& ied = m_model.ied;
 	QTreeWidgetItem* iedItem = addNode(0, tr("IED ") + QString::fromUtf8(ied.name.c_str()),
@@ -510,6 +585,14 @@ void MainWindow::buildTree()
 		}
 	}
 	m_tree->expandToDepth(3);
+	if (!expanded.isEmpty() || !selectPath.isEmpty())
+	{
+		QTreeWidgetItem* sel = restoreTreeState(m_tree->invisibleRootItem(), expanded, selectPath);
+		if (sel)
+			m_tree->setCurrentItem(sel);
+		else
+			m_currentPath.clear();
+	}
 }
 
 SclLDevice* MainWindow::ldAt(int li)
@@ -592,10 +675,32 @@ void MainWindow::onTreeSelectionChanged()
 void MainWindow::populateProps(const QString& path)
 {
 	m_loadingProps = true;
-	m_props->setRowCount(0);
+
+	// 清空上次的属性行；注意 QGridLayout 的行拉伸是布局属性、不会随控件删除复位，
+	// 必须连同布局一起重建（否则上一次的行拉伸会作用到本次的对应行，出现大块空白）
+	QWidget* panel = m_propScroll->widget();
+	while (m_propGrid->count() > 0)
+	{
+		QLayoutItem* item = m_propGrid->takeAt(0);
+		if (item->widget())
+		{
+			item->widget()->hide();
+			item->widget()->setParent(0);
+			item->widget()->deleteLater();
+		}
+		delete item;
+	}
+	delete m_propGrid;
+	m_propGrid = new QGridLayout(panel);
+	m_propGrid->setContentsMargins(16, 16, 16, 16);
+	m_propGrid->setHorizontalSpacing(10);
+	m_propGrid->setVerticalSpacing(14);
+
 	QStringList keys;
 	QStringList values;
 	QList<bool> editable;
+	QMap<int, int> kindMap;          // 行号 -> 编辑器类型（缺省 EditText）
+	QMap<int, QStringList> optMap;   // 行号 -> 下拉选项
 
 	QStringList parts = path.split(':');
 	if (path == "ied")
@@ -609,6 +714,7 @@ void MainWindow::populateProps(const QString& path)
 			<< QString::fromUtf8(ied.ipSubnet.c_str()) << QString::fromUtf8(ied.ipGateway.c_str())
 			<< QString::number(ied.port);
 		for (int i = 0; i < 9; ++i) editable << true;
+		kindMap.insert(8, EditInt);   // 端口
 	}
 	else if (path == "history")
 	{
@@ -653,6 +759,8 @@ void MainWindow::populateProps(const QString& path)
 		values << (m_model.ied.serverTimeout >= 0 ? QString::number(m_model.ied.serverTimeout) : QString())
 			<< (m_model.ied.authentication ? "true" : "false");
 		editable << true << true;
+		kindMap.insert(0, EditInt);
+		kindMap.insert(1, EditBool);
 	}
 	else if (parts.size() == 2 && parts[0] == "ld")
 	{
@@ -704,22 +812,38 @@ void MainWindow::populateProps(const QString& path)
 			{
 				const SclDaiSpec& spec = specs[ki];
 				const std::string* val = dobj->FindDaiVal(spec.path);
-				bool canEdit = daiTypeEditable(spec.bType);
 				keys << tr("DAI path") << tr("Basic type") << tr("FC") << tr("Value");
 				values << QString::fromUtf8(spec.path.c_str())
-					<< QString::fromUtf8(spec.bType.c_str())
-					<< QString::fromUtf8(spec.fc.c_str())
-					<< (val ? QString::fromUtf8(val->c_str()) : QString());
-				editable << false << false << false << canEdit;
+					   << QString::fromUtf8(spec.bType.c_str())
+					   << QString::fromUtf8(spec.fc.c_str())
+					   << (val ? QString::fromUtf8(val->c_str()) : QString());
+				editable << false << false << false << true;
+
+				// 值控件按 bType 选择：布尔/枚举下拉，数值带校验器
+				QStringList enumOpts;
 				if (spec.bType == "Enum")
 				{
-					keys << tr("Allowed values");
-					QStringList opts;
 					std::vector<std::pair<int, std::string> > evals = enumValsFor(spec.enumId);
 					for (size_t e = 0; e < evals.size(); ++e)
-						opts << QString::fromUtf8(evals[e].second.c_str());
-					values << (opts.isEmpty() ? tr("(unknown enum type)") : opts.join(" / "));
-					editable << false;
+						enumOpts << QString::fromUtf8(evals[e].second.c_str());
+				}
+				if (spec.bType == "BOOLEAN")
+					kindMap.insert(3, EditBool);
+				else if (spec.bType == "Enum" && !enumOpts.isEmpty())
+				{
+					kindMap.insert(3, EditEnum);
+					optMap.insert(3, enumOpts);
+				}
+				else if (spec.bType == "FLOAT32" || spec.bType == "FLOAT64")
+					kindMap.insert(3, EditFloat);
+				else if (spec.bType.compare(0, 3, "INT") == 0 || spec.bType.compare(0, 4, "UINT") == 0)
+					kindMap.insert(3, EditInt);
+				else if (daiTypeEditable(spec.bType))
+					kindMap.insert(3, EditText);
+				else
+				{
+					kindMap.insert(3, EditNone);
+					editable[3] = false;
 				}
 			}
 		}
@@ -828,8 +952,13 @@ void MainWindow::populateProps(const QString& path)
 				   << (rc.optFields.seqNum ? "true" : "false") << (rc.optFields.timeStamp ? "true" : "false")
 				   << (rc.optFields.dataSet ? "true" : "false") << (rc.optFields.reasonCode ? "true" : "false")
 				   << (rc.optFields.dataRef ? "true" : "false") << (rc.optFields.bufOvfl ? "true" : "false")
-				   << (rc.optFields.entryID ? "true" : "false") << (rc.optFields.config ? "true" : "false");
+				<< (rc.optFields.entryID ? "true" : "false") << (rc.optFields.config ? "true" : "false");
 			for (int i = 0; i < keys.size(); ++i) editable << true;
+			kindMap.insert(6, EditBool);
+			kindMap.insert(7, EditBool);
+			kindMap.insert(8, EditInt);
+			for (int i = 9; i <= 13; ++i) kindMap.insert(i, EditBool);
+			for (int i = 14; i <= 21; ++i) kindMap.insert(i, EditBool);
 		}
 		else if (ln && parts[0] == "gcb" && idx >= 0 && idx < (int)ln->gses.size())
 		{
@@ -839,6 +968,7 @@ void MainWindow::populateProps(const QString& path)
 				<< QString::fromUtf8(gc.dataSet.c_str()) << QString::fromUtf8(gc.confRev.c_str())
 				<< (gc.fixedOffs ? "true" : "false");
 			for (int i = 0; i < keys.size(); ++i) editable << true;
+			kindMap.insert(4, EditBool);
 		}
 		else if (ln && parts[0] == "smcb" && idx >= 0 && idx < (int)ln->smvs.size())
 		{
@@ -850,6 +980,10 @@ void MainWindow::populateProps(const QString& path)
 				<< QString::fromUtf8(sc.smpRate.c_str()) << QString::fromUtf8(sc.nofASDU.c_str())
 				<< QString::fromUtf8(sc.smpMod.c_str());
 			for (int i = 0; i < keys.size(); ++i) editable << true;
+			kindMap.insert(4, EditInt);
+			kindMap.insert(5, EditInt);
+			kindMap.insert(6, EditEnum);
+			optMap.insert(6, QStringList() << "S" << "P");
 		}
 		else if (ln && parts[0] == "logcb" && idx >= 0 && idx < (int)ln->logs.size())
 		{
@@ -862,6 +996,7 @@ void MainWindow::populateProps(const QString& path)
 				<< (lc.trgOps.dupd ? "true" : "false") << (lc.trgOps.period ? "true" : "false")
 				<< (lc.trgOps.gi ? "true" : "false");
 			for (int i = 0; i < keys.size(); ++i) editable << true;
+			for (int i = 4; i <= 8; ++i) kindMap.insert(i, EditBool);
 		}
 		else if (ln && parts[0] == "setcb" && idx >= 0 && idx < (int)ln->settings.size())
 		{
@@ -879,20 +1014,100 @@ void MainWindow::populateProps(const QString& path)
 		editable << false;
 	}
 
-	m_props->setRowCount(keys.size());
+	// 表单渲染：每行独立 HBox（标签最小宽 150 + 编辑器伸展），杜绝文字与输入框重叠
+	auto makeCombo = [this, path](const QStringList& opts, const QString& cur, int row) -> QComboBox* {
+		QComboBox* cb = new QComboBox(m_propScroll->widget());
+		cb->addItems(opts);
+		int ix = opts.indexOf(cur);
+		if (ix < 0 && !cur.isEmpty())
+		{
+			cb->insertItem(0, cur);
+			ix = 0;
+		}
+		cb->setCurrentIndex(ix < 0 ? 0 : ix);
+		connect(cb, &QComboBox::currentTextChanged, this, [this, path, row](const QString& v) {
+			if (m_loadingProps) return;
+			applyProp(path, row, v);
+		});
+		return cb;
+	};
+	auto makeText = [this, path](const QString& cur, int row, bool ro, QLineEdit*& outLe) -> QLineEdit* {
+		QLineEdit* le = new QLineEdit(cur, m_propScroll->widget());
+		le->setReadOnly(ro);
+		if (!ro)
+		{
+			const QString orig = cur;
+			connect(le, &QLineEdit::editingFinished, this, [this, path, row, le, orig]() {
+				if (m_loadingProps || le->text() == orig) return;
+				applyProp(path, row, le->text());
+			});
+		}
+		outLe = le;
+		return le;
+	};
+
+	int row = 0;
 	for (int i = 0; i < keys.size(); ++i)
 	{
-		QTableWidgetItem* k = new QTableWidgetItem(keys[i]);
-		k->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-		m_props->setItem(i, 0, k);
-		QTableWidgetItem* v = new QTableWidgetItem(values[i]);
-		if (i < editable.size() && editable[i])
-			v->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
+		bool canEdit = (i < editable.size() && editable[i]);
+		int kind = kindMap.value(i, canEdit ? (int)EditText : (int)EditNone);
+		QStringList opts = optMap.value(i);
+		if (!canEdit)
+			kind = EditNone;
+
+		QWidget* rowW = new QWidget(m_propScroll->widget());
+		rowW->setObjectName("propRow");
+		QHBoxLayout* rl = new QHBoxLayout(rowW);
+		rl->setContentsMargins(0, 0, 0, 0);
+		rl->setSpacing(10);
+
+		QLabel* lab = new QLabel(keys[i], rowW);
+		lab->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+		lab->setMinimumWidth(150);
+		rl->addWidget(lab);
+
+		QWidget* ed = 0;
+		if (kind == EditNone)
+		{
+			QLineEdit* le = 0;
+			ed = makeText(values[i], i, true, le);
+		}
+		else if (kind == EditBool)
+		{
+			ed = makeCombo(QStringList() << "true" << "false", values[i], i);
+		}
+		else if (kind == EditEnum)
+		{
+			ed = makeCombo(opts, values[i], i);
+		}
+		else if (kind == EditInt)
+		{
+			QLineEdit* le = 0;
+			ed = makeText(values[i], i, false, le);
+			le->setValidator(new QIntValidator(le));
+		}
+		else if (kind == EditFloat)
+		{
+			QLineEdit* le = 0;
+			ed = makeText(values[i], i, false, le);
+			QDoubleValidator* dv = new QDoubleValidator(le);
+			dv->setLocale(QLocale::c());
+			le->setValidator(dv);
+		}
 		else
-			v->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-		m_props->setItem(i, 1, v);
+		{
+			QLineEdit* le = 0;
+			ed = makeText(values[i], i, false, le);
+		}
+
+		rl->addWidget(ed, 1);
+		m_propGrid->addWidget(rowW, row, 0, 1, 2);
+		++row;
 	}
-	m_props->resizeColumnToContents(0);
+	// 尾部弹簧：吸收剩余高度，属性行靠上排列
+	QWidget* spacer = new QWidget(panel);
+	spacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+	m_propGrid->addWidget(spacer, row, 0, 1, 2);
 	m_loadingProps = false;
 }
 
@@ -1315,13 +1530,6 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		return;
 	}
 	buildTree();
-}
-
-void MainWindow::onPropChanged(QTableWidgetItem* item)
-{
-	if (m_loadingProps || item == 0 || item->column() != 1)
-		return;
-	applyProp(m_currentPath, item->row(), item->text());
 }
 
 void MainWindow::log(const QString& text)

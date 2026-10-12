@@ -1,6 +1,7 @@
 <RCC>
   <qresource prefix="/icons">
     <file alias="app.png">app_256.png</file>
+    <file alias="chevron-down.svg">icons/chevron-down.svg</file>
     <file alias="new.svg">icons/new.svg</file>
     <file alias="open.svg">icons/open.svg</file>
     <file alias="save.svg">icons/save.svg</file>
@@ -23,5 +24,8 @@
     <file alias="do.svg">icons/do.svg</file>
     <file alias="dai.svg">icons/dai.svg</file>
     <file alias="history.svg">icons/history.svg</file>
+  </qresource>
+  <qresource prefix="/i18n">
+    <file alias="ieddesigner_zh_CN.qm">../../translate/ieddesigner_zh_CN.qm</file>
   </qresource>
 </RCC>
