@@ -1,8 +1,10 @@
 # IED²esigner
 
-IEC 61850 IED 模型设计工具（Qt 6 / C++）。
+IEC 61850 IED 模型设计工具（Qt 5 / Qt 6 / C++）。
 
-基于原 newfert IED 设计器（Qt 4.8.7）的 Qt6 重构增强版：在原有"在线读取 + 点表导出 + 模型加载校验"能力之上，补齐了图形化建模的核心能力——DOI/DAI 值编辑、DO 管理、数据集/FCDA、五类控制块、通信段完整建模，并支持界面多语言。
+基于原 newfert IED 设计器（Qt 4.8.7）的 Qt5/Qt6 重构增强版：在原有"在线读取 + 点表导出 + 模型加载校验"能力之上，补齐了图形化建模的核心能力——DOI/DAI 值编辑、DO 管理、数据集/FCDA、五类控制块、通信段完整建模，并支持界面多语言。
+
+> 同一份代码同时支持 Qt 5.15 与 Qt 6.6（Qt5 分支已完成 5.15.2 全量验证：MSVC2019 与 MinGW 双套件编译 + 全部自检模式 + GUI 实机验证）。
 
 > 命名：IED² + esigner = IED²esigner（IED 平方设计器）
 
@@ -50,10 +52,10 @@ IEC 61850 IED 模型设计工具（Qt 6 / C++）。
 
 | 组件 | 说明 |
 |---|---|
-| Qt 6.6.3 | 模块：widgets / xml / concurrent / svg（MinGW 11.2 或 MSVC 2019/2022 套件） |
+| Qt 5.15.2 或 Qt 6.6.3 | 模块：widgets / xml / concurrent / svg（MSVC2019 64 位或 MinGW 81_64 套件） |
 | libprot61850 | IEC 61850 模型加载器，位于 `../protocol/libprot61850`（相对仓库），**需带 sgRefs 的新版** |
 | libiec61850 1.5.3 | 头文件位于 `../include/libiec61850`，链接库见下 |
-| Windows SDK | MSVC 构建需要（本机为 10.0.26100.0） |
+| Windows SDK | MSVC 构建需要（10.0.19041.0 或 10.0.26100.0 均可） |
 
 ### 61850 链接库（两种套件分别构建，位于仓库同级目录）
 - **MinGW**：`../libiec61850-mingw/src/libiec61850.a`（CMake + MinGW 从源码构建，hal 为 OBJECT 库已并入）
@@ -69,7 +71,18 @@ TRANSLATIONS += translate/ieddesigner_zh_CN.ts
 win32-g++ { LIBPATH += $$PWD/../libiec61850-mingw/src; LIBS += -liec61850 -lws2_32 }
 else:win32 { CONFIG(debug, debug|release) 分目录链接 MSVC 库 }
 win32-msvc: QMAKE_CXXFLAGS += /utf-8      # 源码统一 UTF-8
+win32 { Debug/Release 的 obj/moc/ui/rcc 中间目录分开 }  # 两套配置可共存互不覆盖
 ```
+
+### Qt5 构建（MSVC2019 64 位示例）
+```bat
+set PATH=D:\programming\Qt\5.15.2\5.15.2\msvc2019_64\bin;<MSVC+SDK 环境>;%PATH%
+qmake ieddesigner.pro -spec win32-msvc
+nmake /f Makefile.Release
+```
+> 注意：中文 Windows 上用 **Qt6** 的 qmake 时，若 cl 输出为中文会导致 qmake 解析默认
+> include 路径失败，需先 `set VSLANG=1033`（Qt Creator 的 MSVC 套件默认会设置）。
+> Qt5 的 qmake 无此问题。
 
 ---
 

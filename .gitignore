@@ -6,6 +6,11 @@ bin*
 Makefile
 Makefile.*
 
+object_script.*
+
+.qmake.stash
+ieddesigner_resource.rc
+
 export/
 
 *.rt.cid

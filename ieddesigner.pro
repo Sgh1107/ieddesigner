@@ -16,7 +16,8 @@ RC_ICONS = src/resources/app.ico
 
 CONFIG	+= c++17 warn_off console
 
-# Qt6 源码统一为 UTF-8；MSVC 默认按系统 ANSI 代码页解释窄字面量，需显式指定
+# 源码统一为 UTF-8；MSVC 默认按系统 ANSI 代码页解释窄字面量，需显式指定
+# （Qt5/Qt6 的 MSVC 套件均适用）
 win32-msvc:QMAKE_CXXFLAGS += /utf-8
 
 INCLUDEPATH	+= src src/core src/ui validate $$PWD/../protocol/libprot61850 $$PWD/../include/libiec61850
@@ -59,8 +60,17 @@ SOURCES	+= src/main.cpp \
 
 win32 {
   DESTDIR = bin
-  OBJECTS_DIR = build/obj
-  MOC_DIR = build/moc
-  UI_DIR = build/ui
-  RCC_DIR = build/rcc
+  # Debug/Release 中间目录分开：两套配置共用同一份 obj/moc 时，
+  # nmake 会因时间戳误判“无需更新”，导致另一套配置静默不编译
+  CONFIG(debug, debug|release) {
+    OBJECTS_DIR = build/obj/debug
+    MOC_DIR = build/moc/debug
+    UI_DIR = build/ui/debug
+    RCC_DIR = build/rcc/debug
+  } else {
+    OBJECTS_DIR = build/obj/release
+    MOC_DIR = build/moc/release
+    UI_DIR = build/ui/release
+    RCC_DIR = build/rcc/release
+  }
 }
