@@ -8,6 +8,7 @@
 #include "modelvalidate.h"
 
 #include <QTreeWidget>
+#include <QHeaderView>
 #include <QTableWidget>
 #include <QPlainTextEdit>
 #include <QDockWidget>
@@ -36,47 +37,47 @@ MainWindow::MainWindow(QWidget* parent)
 	, m_onlineAct(0)
 	, m_browseThread(0)
 {
-	setWindowTitle(tr("newfert IEDÉè¼ÆÆ÷"));
+	setWindowTitle(tr("newfert IEDè®¾è®¡å™¨"));
 	resize(1100, 700);
 
 	m_tree = new QTreeWidget(this);
 	m_tree->setColumnCount(2);
-	m_tree->setHeaderLabels(QStringList() << tr("±êÌâ") << tr("ÏêÏ¸"));
+	m_tree->setHeaderLabels(QStringList() << tr("æ ‡é¢˜") << tr("è¯¦ç»†"));
 	m_tree->setContextMenuPolicy(Qt::CustomContextMenu);
 	setCentralWidget(m_tree);
 
-	QDockWidget* propDock = new QDockWidget(tr("ÊôĞÔ"), this);
+	QDockWidget* propDock = new QDockWidget(tr("å±æ€§"), this);
 	m_props = new QTableWidget(this);
 	m_props->setColumnCount(2);
-	m_props->setHorizontalHeaderLabels(QStringList() << tr("ÊôĞÔ") << tr("Öµ"));
+	m_props->setHorizontalHeaderLabels(QStringList() << tr("å±æ€§") << tr("å€¼"));
 	propDock->setWidget(m_props);
 	addDockWidget(Qt::LeftDockWidgetArea, propDock);
 
-	QDockWidget* logDock = new QDockWidget(tr("ÈÕÖ¾"), this);
+	QDockWidget* logDock = new QDockWidget(tr("æ—¥å¿—"), this);
 	m_log = new QPlainTextEdit(this);
 	m_log->setReadOnly(true);
 	logDock->setWidget(m_log);
 	addDockWidget(Qt::BottomDockWidgetArea, logDock);
 
-	QMenu* fileMenu = menuBar()->addMenu(tr("ÎÄ¼ş"));
-	fileMenu->addAction(tr("ĞÂ½¨"), this, SLOT(onNewModel()));
-	QAction* openAct = fileMenu->addAction(tr("´ò¿ªSCLÄ£ĞÍ"));
+	QMenu* fileMenu = menuBar()->addMenu(tr("æ–‡ä»¶"));
+	fileMenu->addAction(tr("æ–°å»º"), this, SLOT(onNewModel()));
+	QAction* openAct = fileMenu->addAction(tr("æ‰“å¼€SCLæ¨¡å‹"));
 	connect(openAct, SIGNAL(triggered()), this, SLOT(onOpenScl()));
-	fileMenu->addAction(tr("±£´æ"), this, SLOT(onSaveCid()));
-	fileMenu->addAction(tr("Áí´æÎª"), this, SLOT(onSaveCidAs()));
-	QAction* closeAct = fileMenu->addAction(tr("¹Ø±Õ"));
+	fileMenu->addAction(tr("ä¿å­˜"), this, SLOT(onSaveCid()));
+	fileMenu->addAction(tr("å¦å­˜ä¸º"), this, SLOT(onSaveCidAs()));
+	QAction* closeAct = fileMenu->addAction(tr("å…³é—­"));
 	closeAct->setEnabled(false);
 	fileMenu->addSeparator();
-	fileMenu->addAction(tr("ÍË³ö"), this, SLOT(close()));
+	fileMenu->addAction(tr("é€€å‡º"), this, SLOT(close()));
 
-	QMenu* toolMenu = menuBar()->addMenu(tr("¹¤¾ß"));
-	toolMenu->addAction(tr("µ¼³öICDÎÄ¼ş"), this, SLOT(onExportIcd()));
-	toolMenu->addAction(tr("µ¼³öCIDÎÄ¼ş"), this, SLOT(onExportCid()));
-	toolMenu->addAction(tr("µ¼³öCSVµã±í"), this, SLOT(onExportCsv()));
+	QMenu* toolMenu = menuBar()->addMenu(tr("å·¥å…·"));
+	toolMenu->addAction(tr("å¯¼å‡ºICDæ–‡ä»¶"), this, SLOT(onExportIcd()));
+	toolMenu->addAction(tr("å¯¼å‡ºCIDæ–‡ä»¶"), this, SLOT(onExportCid()));
+	toolMenu->addAction(tr("å¯¼å‡ºCSVç‚¹è¡¨"), this, SLOT(onExportCsv()));
 	toolMenu->addSeparator();
-	m_jsonAct = toolMenu->addAction(tr("µ¼ÈëÔÚÏßJSON"));
+	m_jsonAct = toolMenu->addAction(tr("å¯¼å…¥åœ¨çº¿JSON"));
 	connect(m_jsonAct, SIGNAL(triggered()), this, SLOT(onImportJson()));
-	m_onlineAct = toolMenu->addAction(tr("ÔÚÏß¶ÁÈ¡IED"));
+	m_onlineAct = toolMenu->addAction(tr("åœ¨çº¿è¯»å–IED"));
 	connect(m_onlineAct, SIGNAL(triggered()), this, SLOT(onOnlineRead()));
 
 	connect(m_tree, SIGNAL(itemSelectionChanged()), this, SLOT(onTreeSelectionChanged()));
@@ -98,7 +99,12 @@ MainWindow::MainWindow(QWidget* parent)
 	m_model.ied.lds.push_back(ld);
 
 	buildTree();
-	log(tr("¾ÍĞ÷¡£ĞÂ½¨Ä£ĞÍÒÑÔØÈë£ºIED=%1").arg(QString::fromLocal8Bit(m_model.ied.name.c_str())));
+	m_tree->header()->setStretchLastSection(false);          // å…³é—­æœ€åä¸€åˆ—è‡ªåŠ¨æ‹‰ä¼¸
+	m_tree->header()->setSectionResizeMode(0, QHeaderView::Stretch);  // ç¬¬0åˆ—è‡ªé€‚åº”æ‹‰ä¼¸
+	m_tree->header()->setSectionResizeMode(1, QHeaderView::Stretch);  // ç¬¬1åˆ—è‡ªé€‚åº”æ‹‰ä¼¸
+	m_tree->header()->resizeSection(0, 300);                 // åˆå§‹å®½åº¦ï¼Œä½œä¸ºæ¯”ä¾‹å‚è€ƒ
+	m_tree->header()->resizeSection(1, 500);
+	log(tr("å°±ç»ªã€‚æ–°å»ºæ¨¡å‹å·²è½½å…¥ï¼šIED=%1").arg(QString::fromUtf8(m_model.ied.name.c_str())));
 }
 
 QTreeWidgetItem* MainWindow::addNode(QTreeWidgetItem* parent, const QString& text,
@@ -115,38 +121,38 @@ void MainWindow::buildTree()
 {
 	m_tree->clear();
 	const SclIed& ied = m_model.ied;
-	QTreeWidgetItem* iedItem = addNode(0, tr("IED ") + QString::fromLocal8Bit(ied.name.c_str()),
-		QString::fromLocal8Bit(ied.desc.c_str()), "ied");
-	QTreeWidgetItem* apItem = addNode(iedItem, tr("AccessPoint ") + QString::fromLocal8Bit(ied.apName.c_str()),
+	QTreeWidgetItem* iedItem = addNode(0, tr("IED ") + QString::fromUtf8(ied.name.c_str()),
+		QString::fromUtf8(ied.desc.c_str()), "ied");
+	QTreeWidgetItem* apItem = addNode(iedItem, tr("AccessPoint ") + QString::fromUtf8(ied.apName.c_str()),
 		QString(), "ap");
 	QTreeWidgetItem* svrItem = addNode(apItem, tr("Server"), QString(), "server");
 	for (size_t li = 0; li < ied.lds.size(); ++li)
 	{
 		const SclLDevice& ld = ied.lds[li];
-		QString ldDetail = QString::fromLocal8Bit(ld.ldName.c_str());
+		QString ldDetail = QString::fromUtf8(ld.ldName.c_str());
 		if (!ld.desc.empty())
-			ldDetail += " " + QString::fromLocal8Bit(ld.desc.c_str());
-		QTreeWidgetItem* ldItem = addNode(svrItem, tr("LDevice ") + QString::fromLocal8Bit(ld.inst.c_str()),
+			ldDetail += " " + QString::fromUtf8(ld.desc.c_str());
+		QTreeWidgetItem* ldItem = addNode(svrItem, tr("LDevice ") + QString::fromUtf8(ld.inst.c_str()),
 			ldDetail, QString("ld:%1").arg((int)li));
-		QTreeWidgetItem* ln0Item = addNode(ldItem, tr("LN0 ") + QString::fromLocal8Bit(ld.ln0.lnClass.c_str()),
-			tr("Âß¼­½ÚµãÁã"), QString("ln0:%1").arg((int)li));
+		QTreeWidgetItem* ln0Item = addNode(ldItem, tr("LN0 ") + QString::fromUtf8(ld.ln0.lnClass.c_str()),
+			tr("é€»è¾‘èŠ‚ç‚¹é›¶"), QString("ln0:%1").arg((int)li));
 		for (size_t d = 0; d < ld.ln0.dos.size(); ++d)
 		{
 			const SclDo& dobj = ld.ln0.dos[d];
-			addNode(ln0Item, tr("DO ") + QString::fromLocal8Bit(dobj.name.c_str()),
-				QString::fromLocal8Bit(dobj.cdc.c_str()) + " " + QString::fromLocal8Bit(dobj.desc.c_str()),
+			addNode(ln0Item, tr("DO ") + QString::fromUtf8(dobj.name.c_str()),
+				QString::fromUtf8(dobj.cdc.c_str()) + " " + QString::fromUtf8(dobj.desc.c_str()),
 				QString("do:%1:-1:%2").arg((int)li).arg((int)d));
 		}
 		for (size_t ni = 0; ni < ld.lns.size(); ++ni)
 		{
 			const SclLn& ln = ld.lns[ni];
-			QTreeWidgetItem* lnItem = addNode(ldItem, tr("LN ") + QString::fromLocal8Bit(ln.Name().c_str()),
-				QString::fromLocal8Bit(ln.desc.c_str()), QString("ln:%1:%2").arg((int)li).arg((int)ni));
+			QTreeWidgetItem* lnItem = addNode(ldItem, tr("LN ") + QString::fromUtf8(ln.Name().c_str()),
+				QString::fromUtf8(ln.desc.c_str()), QString("ln:%1:%2").arg((int)li).arg((int)ni));
 			for (size_t d = 0; d < ln.dos.size(); ++d)
 			{
 				const SclDo& dobj = ln.dos[d];
-				addNode(lnItem, tr("DO ") + QString::fromLocal8Bit(dobj.name.c_str()),
-					QString::fromLocal8Bit(dobj.cdc.c_str()) + " " + QString::fromLocal8Bit(dobj.desc.c_str()),
+				addNode(lnItem, tr("DO ") + QString::fromUtf8(dobj.name.c_str()),
+					QString::fromUtf8(dobj.cdc.c_str()) + " " + QString::fromUtf8(dobj.desc.c_str()),
 					QString("do:%1:%2:%3").arg((int)li).arg((int)ni).arg((int)d));
 			}
 		}
@@ -202,10 +208,10 @@ void MainWindow::populateProps(const QString& path)
 	if (path == "ied")
 	{
 		const SclIed& ied = m_model.ied;
-		keys << tr("IEDÃû³Æ") << tr("ÃèÊö") << tr("AccessPoint") << tr("IP") << tr("×ÓÍøÑÚÂë") << tr("Íø¹Ø") << tr("¶Ë¿Ú");
-		values << QString::fromLocal8Bit(ied.name.c_str()) << QString::fromLocal8Bit(ied.desc.c_str())
-			<< QString::fromLocal8Bit(ied.apName.c_str()) << QString::fromLocal8Bit(ied.ip.c_str())
-			<< QString::fromLocal8Bit(ied.ipSubnet.c_str()) << QString::fromLocal8Bit(ied.ipGateway.c_str())
+		keys << tr("IEDåç§°") << tr("æè¿°") << tr("AccessPoint") << tr("IP") << tr("å­ç½‘æ©ç ") << tr("ç½‘å…³") << tr("ç«¯å£");
+		values << QString::fromUtf8(ied.name.c_str()) << QString::fromUtf8(ied.desc.c_str())
+			<< QString::fromUtf8(ied.apName.c_str()) << QString::fromUtf8(ied.ip.c_str())
+			<< QString::fromUtf8(ied.ipSubnet.c_str()) << QString::fromUtf8(ied.ipGateway.c_str())
 			<< QString::number(ied.port);
 		for (int i = 0; i < 7; ++i) editable << true;
 	}
@@ -214,9 +220,9 @@ void MainWindow::populateProps(const QString& path)
 		SclLDevice* ld = ldAt(parts[1].toInt());
 		if (ld)
 		{
-			keys << tr("Instance") << tr("LDName") << tr("ÃèÊö");
-			values << QString::fromLocal8Bit(ld->inst.c_str()) << QString::fromLocal8Bit(ld->ldName.c_str())
-				<< QString::fromLocal8Bit(ld->desc.c_str());
+			keys << tr("Instance") << tr("LDName") << tr("æè¿°");
+			values << QString::fromUtf8(ld->inst.c_str()) << QString::fromUtf8(ld->ldName.c_str())
+				<< QString::fromUtf8(ld->desc.c_str());
 			editable << true << true << true;
 		}
 	}
@@ -229,9 +235,9 @@ void MainWindow::populateProps(const QString& path)
 			ln = lnAt(parts[1].toInt(), parts[2].toInt());
 		if (ln)
 		{
-			keys << tr("Prefix") << tr("LnClass") << tr("Inst") << tr("ÃèÊö");
-			values << QString::fromLocal8Bit(ln->prefix.c_str()) << QString::fromLocal8Bit(ln->lnClass.c_str())
-				<< QString::fromLocal8Bit(ln->inst.c_str()) << QString::fromLocal8Bit(ln->desc.c_str());
+			keys << tr("Prefix") << tr("LnClass") << tr("Inst") << tr("æè¿°");
+			values << QString::fromUtf8(ln->prefix.c_str()) << QString::fromUtf8(ln->lnClass.c_str())
+				<< QString::fromUtf8(ln->inst.c_str()) << QString::fromUtf8(ln->desc.c_str());
 			editable << true << false << true << true;
 		}
 	}
@@ -240,9 +246,9 @@ void MainWindow::populateProps(const QString& path)
 		SclDo* dobj = doAt(parts[1].toInt(), parts[2].toInt(), parts[3].toInt());
 		if (dobj)
 		{
-			keys << tr("Ãû³Æ") << tr("CDC") << tr("ÃèÊö");
-			values << QString::fromLocal8Bit(dobj->name.c_str()) << QString::fromLocal8Bit(dobj->cdc.c_str())
-				<< QString::fromLocal8Bit(dobj->desc.c_str());
+			keys << tr("åç§°") << tr("CDC") << tr("æè¿°");
+			values << QString::fromUtf8(dobj->name.c_str()) << QString::fromUtf8(dobj->cdc.c_str())
+				<< QString::fromUtf8(dobj->desc.c_str());
 			editable << false << false << true;
 		}
 	}
@@ -266,7 +272,7 @@ void MainWindow::populateProps(const QString& path)
 
 void MainWindow::applyProp(const QString& path, int row, const QString& value)
 {
-	std::string v = value.toLocal8Bit().constData();
+	std::string v = value.toUtf8().constData();
 	QStringList parts = path.split(':');
 	if (path == "ied")
 	{
@@ -331,31 +337,31 @@ void MainWindow::log(const QString& text)
 void MainWindow::validateAndLog(const std::string& sclText)
 {
 	ValidateOutcome out;
-	std::string temp = QDir::tempPath().toLocal8Bit().constData();
+	std::string temp = QDir::tempPath().toUtf8().constData();
 	temp += "/ieddesigner_validate.scl";
 	ValidateSclText(sclText, m_model.ied.name, temp, out);
-	log(tr("loader ÊÔÔØ£ºDI=%1 AI=%2 DO=%3 AO=%4 SG=%5 ied=%6")
+	log(tr("loader è¯•è½½ï¼šDI=%1 AI=%2 DO=%3 AO=%4 SG=%5 ied=%6")
 		.arg((int)out.table.diRefs.size()).arg((int)out.table.aiRefs.size())
 		.arg((int)out.table.doRefs.size()).arg((int)out.table.aoRefs.size())
 		.arg((int)out.table.sgRefs.size())
-		.arg(QString::fromLocal8Bit(out.detectedIed.c_str())));
+		.arg(QString::fromUtf8(out.detectedIed.c_str())));
 	if (out.sgQuirk)
-		log(tr("×¢Òâ£ºloader Ğ£Ñé±¨ SG contains an invalid point£¨loader ÒÑÖªÈ±Ïİ£¬ucType=2 ±» ValidateRefs ¾Ü¾ø£©£¬µã±íÈÔÒÑ½âÎö"));
+		log(tr("æ³¨æ„ï¼šloader æ ¡éªŒæŠ¥ SG contains an invalid pointï¼ˆloader å·²çŸ¥ç¼ºé™·ï¼ŒucType=2 è¢« ValidateRefs æ‹’ç»ï¼‰ï¼Œç‚¹è¡¨ä»å·²è§£æ"));
 	else if (!out.loaderOk)
-		log(tr("loader Ğ£ÑéÊ§°Ü£º%1").arg(QString::fromLocal8Bit(out.errorText.c_str())));
+		log(tr("loader æ ¡éªŒå¤±è´¥ï¼š%1").arg(QString::fromUtf8(out.errorText.c_str())));
 	else
-		log(tr("loader Ğ£ÑéÍ¨¹ı"));
+		log(tr("loader æ ¡éªŒé€šè¿‡"));
 }
 
 void MainWindow::onNewModel()
 {
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("ĞÂ½¨Ä£ĞÍ"));
+	dlg.setWindowTitle(tr("æ–°å»ºæ¨¡å‹"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* iedEdit = new QLineEdit("TEMPLATE", &dlg);
 	QLineEdit* apEdit = new QLineEdit("accessPoint1", &dlg);
 	QLineEdit* ldEdit = new QLineEdit("LD1", &dlg);
-	form->addRow(tr("IED Ãû³Æ"), iedEdit);
+	form->addRow(tr("IED åç§°"), iedEdit);
 	form->addRow(tr("AccessPoint"), apEdit);
 	form->addRow(tr("LDevice inst"), ldEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
@@ -366,10 +372,10 @@ void MainWindow::onNewModel()
 		return;
 
 	m_model = SclModel();
-	m_model.ied.name = iedEdit->text().toLocal8Bit().constData();
-	m_model.ied.apName = apEdit->text().toLocal8Bit().constData();
+	m_model.ied.name = iedEdit->text().toUtf8().constData();
+	m_model.ied.apName = apEdit->text().toUtf8().constData();
 	SclLDevice ld;
-	ld.inst = ldEdit->text().toLocal8Bit().constData();
+	ld.inst = ldEdit->text().toUtf8().constData();
 	ld.ldName = ld.inst;
 	ld.ln0 = SclTemplates::MakeLn("LLN0");
 	SclLn lphd = SclTemplates::MakeLn("LPHD");
@@ -378,7 +384,7 @@ void MainWindow::onNewModel()
 	m_model.ied.lds.push_back(ld);
 	m_currentFile.clear();
 	buildTree();
-	log(tr("ĞÂ½¨Ä£ĞÍ£ºIED=%1").arg(iedEdit->text()));
+	log(tr("æ–°å»ºæ¨¡å‹ï¼šIED=%1").arg(iedEdit->text()));
 }
 
 void MainWindow::onTreeContextMenu(const QPoint& pos)
@@ -392,9 +398,9 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 	QAction* addAct = 0;
 	QAction* delAct = 0;
 	if (parts.size() == 2 && parts[0] == "ld")
-		addAct = menu.addAction(tr("Ìí¼ÓÂß¼­½Úµã"));
+		addAct = menu.addAction(tr("æ·»åŠ é€»è¾‘èŠ‚ç‚¹"));
 	if (parts.size() == 3 && parts[0] == "ln")
-		delAct = menu.addAction(tr("É¾³ıÂß¼­½Úµã"));
+		delAct = menu.addAction(tr("åˆ é™¤é€»è¾‘èŠ‚ç‚¹"));
 	QAction* picked = menu.exec(m_tree->mapToGlobal(pos));
 	if (picked == 0)
 		return;
@@ -407,7 +413,7 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 	if (picked == addAct)
 	{
 		QDialog dlg(this);
-		dlg.setWindowTitle(tr("Ìí¼ÓÂß¼­½Úµã"));
+		dlg.setWindowTitle(tr("æ·»åŠ é€»è¾‘èŠ‚ç‚¹"));
 		QVBoxLayout* vbox = new QVBoxLayout(&dlg);
 		QListWidget* list = new QListWidget(&dlg);
 		const std::vector<SclLnT>& table = SclTemplates::LnTypes();
@@ -415,9 +421,9 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 		{
 			if (table[i].lnClass == std::string("LLN0"))
 				continue;
-			QString label = QString::fromLocal8Bit(table[i].lnClass) + " - " + QString::fromLocal8Bit(table[i].desc);
+			QString label = QString::fromUtf8(table[i].lnClass) + " - " + QString::fromUtf8(table[i].desc);
 			new QListWidgetItem(label, list);
-			list->item(list->count() - 1)->setData(Qt::UserRole, QString::fromLocal8Bit(table[i].lnClass));
+			list->item(list->count() - 1)->setData(Qt::UserRole, QString::fromUtf8(table[i].lnClass));
 		}
 		vbox->addWidget(list);
 		QHBoxLayout* hbox = new QHBoxLayout;
@@ -436,29 +442,29 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 		connect(box, SIGNAL(rejected()), &dlg, SLOT(reject()));
 		if (dlg.exec() != QDialog::Accepted || list->currentItem() == 0)
 			return;
-		std::string lnClass = list->currentItem()->data(Qt::UserRole).toString().toLocal8Bit().constData();
+		std::string lnClass = list->currentItem()->data(Qt::UserRole).toString().toUtf8().constData();
 		SclLn ln = SclTemplates::MakeLn(lnClass);
-		ln.inst = instEdit->text().toLocal8Bit().constData();
-		ln.prefix = prefixEdit->text().toLocal8Bit().constData();
+		ln.inst = instEdit->text().toUtf8().constData();
+		ln.prefix = prefixEdit->text().toUtf8().constData();
 		ld->lns.push_back(ln);
 		buildTree();
-		log(tr("Ìí¼ÓÂß¼­½Úµã %1%2 µ½ %3").arg(QString::fromLocal8Bit(lnClass.c_str())).arg(instEdit->text()).arg(QString::fromLocal8Bit(ld->inst.c_str())));
+		log(tr("æ·»åŠ é€»è¾‘èŠ‚ç‚¹ %1%2 åˆ° %3").arg(QString::fromUtf8(lnClass.c_str())).arg(instEdit->text()).arg(QString::fromUtf8(ld->inst.c_str())));
 	}
 	else if (picked == delAct)
 	{
 		int ni = parts[2].toInt();
 		if (ni < 0 || ni >= (int)ld->lns.size())
 			return;
-		QString name = QString::fromLocal8Bit(ld->lns[ni].Name().c_str());
+		QString name = QString::fromUtf8(ld->lns[ni].Name().c_str());
 		ld->lns.erase(ld->lns.begin() + ni);
 		buildTree();
-		log(tr("É¾³ıÂß¼­½Úµã %1").arg(name));
+		log(tr("åˆ é™¤é€»è¾‘èŠ‚ç‚¹ %1").arg(name));
 	}
 }
 
 void MainWindow::onSaveCidAs()
 {
-	QString path = QFileDialog::getSaveFileName(this, tr("±£´æCID"),
+	QString path = QFileDialog::getSaveFileName(this, tr("ä¿å­˜CID"),
 		QDir::currentPath() + "/model.cid", tr("CID (*.cid)"));
 	if (path.isEmpty())
 		return;
@@ -474,72 +480,72 @@ void MainWindow::onSaveCid()
 		return;
 	}
 	std::string err;
-	std::string path = m_currentFile.toLocal8Bit().constData();
+	std::string path = m_currentFile.toUtf8().constData();
 	if (!SclWriter::WriteCid(m_model, path, err))
 	{
-		QMessageBox::warning(this, tr("±£´æÊ§°Ü"), QString::fromLocal8Bit(err.c_str()));
+		QMessageBox::warning(this, tr("ä¿å­˜å¤±è´¥"), QString::fromUtf8(err.c_str()));
 		return;
 	}
-	log(tr("ÒÑ±£´æ CID£º%1").arg(m_currentFile));
+	log(tr("å·²ä¿å­˜ CIDï¼š%1").arg(m_currentFile));
 	validateAndLog(SclWriter::BuildSclText(m_model, true));
 }
 
 void MainWindow::onExportIcd()
 {
-	QString path = QFileDialog::getSaveFileName(this, tr("µ¼³öICDÎÄ¼ş"),
+	QString path = QFileDialog::getSaveFileName(this, tr("å¯¼å‡ºICDæ–‡ä»¶"),
 		QDir::currentPath() + "/model.icd", tr("ICD (*.icd)"));
 	if (path.isEmpty())
 		return;
 	std::string err;
-	if (!SclWriter::WriteIcd(m_model, path.toLocal8Bit().constData(), err))
+	if (!SclWriter::WriteIcd(m_model, path.toUtf8().constData(), err))
 	{
-		QMessageBox::warning(this, tr("µ¼³öÊ§°Ü"), QString::fromLocal8Bit(err.c_str()));
+		QMessageBox::warning(this, tr("å¯¼å‡ºå¤±è´¥"), QString::fromUtf8(err.c_str()));
 		return;
 	}
-	log(tr("ÒÑµ¼³ö ICD£º%1").arg(path));
+	log(tr("å·²å¯¼å‡º ICDï¼š%1").arg(path));
 	validateAndLog(SclWriter::BuildSclText(m_model, false));
 }
 
 void MainWindow::onExportCid()
 {
-	QString path = QFileDialog::getSaveFileName(this, tr("µ¼³öCIDÎÄ¼ş"),
+	QString path = QFileDialog::getSaveFileName(this, tr("å¯¼å‡ºCIDæ–‡ä»¶"),
 		QDir::currentPath() + "/model.cid", tr("CID (*.cid)"));
 	if (path.isEmpty())
 		return;
 	std::string err;
-	if (!SclWriter::WriteCid(m_model, path.toLocal8Bit().constData(), err))
+	if (!SclWriter::WriteCid(m_model, path.toUtf8().constData(), err))
 	{
-		QMessageBox::warning(this, tr("µ¼³öÊ§°Ü"), QString::fromLocal8Bit(err.c_str()));
+		QMessageBox::warning(this, tr("å¯¼å‡ºå¤±è´¥"), QString::fromUtf8(err.c_str()));
 		return;
 	}
-	log(tr("ÒÑµ¼³ö CID£º%1").arg(path));
+	log(tr("å·²å¯¼å‡º CIDï¼š%1").arg(path));
 	validateAndLog(SclWriter::BuildSclText(m_model, true));
 }
 
 void MainWindow::onExportCsv()
 {
-	QString path = QFileDialog::getSaveFileName(this, tr("µ¼³öCSVµã±í"),
+	QString path = QFileDialog::getSaveFileName(this, tr("å¯¼å‡ºCSVç‚¹è¡¨"),
 		QDir::currentPath() + "/model_points.csv", tr("CSV (*.csv)"));
 	if (path.isEmpty())
 		return;
 	std::string sclText = SclWriter::BuildSclText(m_model, false);
 	ValidateOutcome out;
-	std::string temp = QDir::tempPath().toLocal8Bit().constData();
+	std::string temp = QDir::tempPath().toUtf8().constData();
 	temp += "/ieddesigner_validate.scl";
 	ValidateSclText(sclText, m_model.ied.name, temp, out);
 	if (!out.refsParsed)
 	{
-		QMessageBox::warning(this, tr("µ¼³öÊ§°Ü"),
-			tr("loader Î´ÄÜ½âÎö³öÈÎºÎµã£º%1").arg(QString::fromLocal8Bit(out.errorText.c_str())));
+		QMessageBox::warning(this, tr("å¯¼å‡ºå¤±è´¥"),
+			tr("loader æœªèƒ½è§£æå‡ºä»»ä½•ç‚¹ï¼š%1").arg(QString::fromUtf8(out.errorText.c_str())));
 		return;
 	}
 	std::string err;
-	if (!CsvWriter::WriteCsv(m_model, out.table, path.toLocal8Bit().constData(), err))
+	if (!CsvWriter::WriteCsv(m_model, out.table, path.toUtf8().constData(), err))
 	{
-		QMessageBox::warning(this, tr("µ¼³öÊ§°Ü"), QString::fromLocal8Bit(err.c_str()));
+		QMessageBox::warning(this, tr("å¯¼å‡ºå¤±è´¥"), QString::fromUtf8(err.c_str()));
 		return;
 	}
-	log(tr("ÒÑµ¼³ö CSV£º%1£¨DI=%2 AI=%3 DO=%4 AO=%5 SG=%6£©").arg(path)
+	log(tr("å·²å¯¼å‡º CSVï¼š%1ï¼ˆDI=%2 AI=%3 DO=%4 AO=%5 SG=%6ï¼‰").arg(path)
 		.arg((int)out.table.diRefs.size()).arg((int)out.table.aiRefs.size())
 		.arg((int)out.table.doRefs.size()).arg((int)out.table.aoRefs.size())
 		.arg((int)out.table.sgRefs.size()));
@@ -547,16 +553,16 @@ void MainWindow::onExportCsv()
 
 void MainWindow::onOpenScl()
 {
-	QString path = QFileDialog::getOpenFileName(this, tr("´ò¿ªSCLÄ£ĞÍ"),
+	QString path = QFileDialog::getOpenFileName(this, tr("æ‰“å¼€SCLæ¨¡å‹"),
 		QDir::currentPath(), tr("SCL (*.icd *.cid *.scd);;All files (*.*)"));
 	if (path.isEmpty())
 		return;
 	std::string err;
-	std::string npath = path.toLocal8Bit().constData();
+	std::string npath = path.toUtf8().constData();
 	std::vector<std::string> ieds = SclReader::ListIeds(npath, err);
 	if (ieds.empty())
 	{
-		QMessageBox::warning(this, tr("´ò¿ªÊ§°Ü"), QString::fromLocal8Bit(err.c_str()));
+		QMessageBox::warning(this, tr("æ‰“å¼€å¤±è´¥"), QString::fromUtf8(err.c_str()));
 		return;
 	}
 	std::string pick = ieds[0];
@@ -564,17 +570,17 @@ void MainWindow::onOpenScl()
 	{
 		QStringList items;
 		for (size_t i = 0; i < ieds.size(); ++i)
-			items << QString::fromLocal8Bit(ieds[i].c_str());
-		QString sel = QInputDialog::getItem(this, tr("Ñ¡ÔñIED"),
-			tr("ÎÄ¼şº¬¶à¸öIED£¬Ñ¡ÔñÒª´ò¿ªµÄ£º"), items, 0, false);
+			items << QString::fromUtf8(ieds[i].c_str());
+		QString sel = QInputDialog::getItem(this, tr("é€‰æ‹©IED"),
+			tr("æ–‡ä»¶å«å¤šä¸ªIEDï¼Œé€‰æ‹©è¦æ‰“å¼€çš„ï¼š"), items, 0, false);
 		if (sel.isEmpty())
 			return;
-		pick = sel.toLocal8Bit().constData();
+		pick = sel.toUtf8().constData();
 	}
 	SclModel loaded;
 	if (!SclReader::ReadSclFile(npath, pick, loaded, err))
 	{
-		QMessageBox::warning(this, tr("´ò¿ªÊ§°Ü"), QString::fromLocal8Bit(err.c_str()));
+		QMessageBox::warning(this, tr("æ‰“å¼€å¤±è´¥"), QString::fromUtf8(err.c_str()));
 		return;
 	}
 	m_model = loaded;
@@ -590,23 +596,23 @@ void MainWindow::onOpenScl()
 		for (size_t ni = 0; ni < ld.lns.size(); ++ni)
 			doCount += (int)ld.lns[ni].dos.size();
 	}
-	log(tr("ÒÑ´ò¿ª %1£ºIED=%2 LD=%3 LN=%4 DO=%5").arg(path)
-		.arg(QString::fromLocal8Bit(pick.c_str()))
+	log(tr("å·²æ‰“å¼€ %1ï¼šIED=%2 LD=%3 LN=%4 DO=%5").arg(path)
+		.arg(QString::fromUtf8(pick.c_str()))
 		.arg((int)m_model.ied.lds.size()).arg(lnCount).arg(doCount));
 }
 
 void MainWindow::onImportJson()
 {
-	QString path = QFileDialog::getOpenFileName(this, tr("µ¼ÈëÔÚÏßJSON"),
+	QString path = QFileDialog::getOpenFileName(this, tr("å¯¼å…¥åœ¨çº¿JSON"),
 		QDir::currentPath(), tr("JSON (*.json);;All files (*.*)"));
 	if (path.isEmpty())
 		return;
 	std::string err;
 	SclModel loaded;
-	if (!JsonModel::ReadOnlineJsonFile(path.toLocal8Bit().constData(), "",
+	if (!JsonModel::ReadOnlineJsonFile(path.toUtf8().constData(), "",
 		m_model.ied.ip, m_model.ied.port, loaded, err))
 	{
-		QMessageBox::warning(this, tr("µ¼ÈëÊ§°Ü"), QString::fromLocal8Bit(err.c_str()));
+		QMessageBox::warning(this, tr("å¯¼å…¥å¤±è´¥"), QString::fromUtf8(err.c_str()));
 		return;
 	}
 	m_model = loaded;
@@ -622,8 +628,8 @@ void MainWindow::onImportJson()
 		for (size_t ni = 0; ni < ld.lns.size(); ++ni)
 			doCount += (int)ld.lns[ni].dos.size();
 	}
-	log(tr("ÒÑµ¼ÈëÔÚÏßJSON %1£ºIED=%2 LD=%3 LN=%4 DO=%5").arg(path)
-		.arg(QString::fromLocal8Bit(m_model.ied.name.c_str()))
+	log(tr("å·²å¯¼å…¥åœ¨çº¿JSON %1ï¼šIED=%2 LD=%3 LN=%4 DO=%5").arg(path)
+		.arg(QString::fromUtf8(m_model.ied.name.c_str()))
 		.arg((int)m_model.ied.lds.size()).arg(lnCount).arg(doCount));
 }
 
@@ -632,14 +638,14 @@ void MainWindow::onOnlineRead()
 	if (m_browseThread != 0)
 		return;
 	QDialog dlg(this);
-	dlg.setWindowTitle(tr("ÔÚÏß¶ÁÈ¡IED"));
+	dlg.setWindowTitle(tr("åœ¨çº¿è¯»å–IED"));
 	QFormLayout* form = new QFormLayout(&dlg);
 	QLineEdit* ipEdit = new QLineEdit(m_model.ied.ip.c_str(), &dlg);
 	QLineEdit* portEdit = new QLineEdit(QString::number(m_model.ied.port), &dlg);
 	QLineEdit* iedEdit = new QLineEdit("simpleIO", &dlg);
 	form->addRow(tr("IP"), ipEdit);
-	form->addRow(tr("¶Ë¿Ú"), portEdit);
-	form->addRow(tr("IEDÃû(¿É¿Õ)"), iedEdit);
+	form->addRow(tr("ç«¯å£"), portEdit);
+	form->addRow(tr("IEDå(å¯ç©º)"), iedEdit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
 	connect(box, SIGNAL(accepted()), &dlg, SLOT(accept()));
@@ -651,7 +657,7 @@ void MainWindow::onOnlineRead()
 	connect(m_browseThread, SIGNAL(finished()), this, SLOT(onOnlineFinished()));
 	m_onlineAct->setEnabled(false);
 	m_jsonAct->setEnabled(false);
-	log(tr("¿ªÊ¼ÔÚÏß¶ÁÈ¡ %1:%2 ¡­").arg(ipEdit->text()).arg(portEdit->text()));
+	log(tr("å¼€å§‹åœ¨çº¿è¯»å– %1:%2 â€¦").arg(ipEdit->text()).arg(portEdit->text()));
 	m_browseThread->start();
 }
 
@@ -663,7 +669,7 @@ void MainWindow::onOnlineFinished()
 	m_jsonAct->setEnabled(true);
 	if (!t->m_ok)
 	{
-		log(tr("ÔÚÏß¶ÁÈ¡Ê§°Ü£º%1").arg(t->m_error));
+		log(tr("åœ¨çº¿è¯»å–å¤±è´¥ï¼š%1").arg(t->m_error));
 		t->deleteLater();
 		return;
 	}
@@ -680,7 +686,7 @@ void MainWindow::onOnlineFinished()
 		for (size_t ni = 0; ni < ld.lns.size(); ++ni)
 			doCount += (int)ld.lns[ni].dos.size();
 	}
-	log(tr("ÔÚÏß¶ÁÈ¡Íê³É£ºIED=%1 LD=%2 LN=%3 DO=%4").arg(QString::fromLocal8Bit(m_model.ied.name.c_str()))
+	log(tr("åœ¨çº¿è¯»å–å®Œæˆï¼šIED=%1 LD=%2 LN=%3 DO=%4").arg(QString::fromUtf8(m_model.ied.name.c_str()))
 		.arg((int)m_model.ied.lds.size()).arg(lnCount).arg(doCount));
 	t->deleteLater();
 }

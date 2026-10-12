@@ -3,16 +3,24 @@ LANGUAGE	= C++
 
 TARGET = ieddesigner
 
-QT	+= core gui xml
+QT	+= core gui widgets xml
 
-CONFIG	+= qt thread warn_off console
+CONFIG	+= c++17 warn_off console
 
-win32:DEFINES	-= UNICODE
+# Qt6 源码统一为 UTF-8；MSVC 默认按系统 ANSI 代码页解释窄字面量，需显式指定
+win32-msvc:QMAKE_CXXFLAGS += /utf-8
 
 INCLUDEPATH	+= src src/core src/ui validate $$PWD/../protocol/libprot61850 $$PWD/../include/libiec61850
 
-win32:LIBPATH	+= F:/WLMQ-Line2/NK8500_Wlmq/lib F:/libiec61850-1.5.3/build_static_x64/hal/Release
-win32:LIBS	+= iec61850.lib hal.lib ws2_32.lib
+# libiec61850 静态库：MinGW 与本机重建的 MSVC 库（Debug/Release 分目录）分别配置
+win32-g++ {
+	LIBPATH += $$PWD/../libiec61850-mingw/src
+	LIBS += -liec61850 -lws2_32
+} else:win32 {
+	CONFIG(debug, debug|release): LIBPATH += $$PWD/../libiec61850-msvc/Debug
+	else: LIBPATH += $$PWD/../libiec61850-msvc/Release
+	LIBS += iec61850.lib hal.lib ws2_32.lib
+}
 
 HEADERS	+= src/core/sclmodel.h \
 	src/core/scltemplates.h \

@@ -287,15 +287,15 @@ void OnlineBrowseThread::run()
 	std::string err;
 	std::string detected;
 	std::vector<BLd> lds;
-	std::string preferred = m_iedName.toLocal8Bit().constData();
-	m_ok = OnlineClient::BrowseIedModel(m_ip.toLocal8Bit().constData(), m_port, preferred, detected, lds, err);
+	std::string preferred = m_iedName.toUtf8().constData();
+	m_ok = OnlineClient::BrowseIedModel(m_ip.toUtf8().constData(), m_port, preferred, detected, lds, err);
 	if (m_ok)
 	{
 		std::string iedName = preferred.empty() ? detected : preferred;
-		BrowseModel::BuildModelFromBrowse(iedName, m_ip.toLocal8Bit().constData(), m_port, lds, m_model);
+		BrowseModel::BuildModelFromBrowse(iedName, m_ip.toUtf8().constData(), m_port, lds, m_model);
 	}
 	else
 	{
-		m_error = QString::fromLocal8Bit(err.c_str());
+		m_error = QString::fromUtf8(err.c_str());
 	}
 }

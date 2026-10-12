@@ -1,7 +1,7 @@
 #include <QApplication>
-#include <QTextCodec>
 #include <QString>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <windows.h>
 
@@ -162,11 +162,6 @@ static int RunOnline(const char* ip, int port, const char* ied)
 
 int main(int argc, char** argv)
 {
-	QTextCodec* gbk = QTextCodec::codecForName("GBK");
-	QTextCodec::setCodecForLocale(gbk);
-	QTextCodec::setCodecForTr(gbk);
-	QTextCodec::setCodecForCStrings(gbk);
-
 	if (argc >= 4 && strcmp(argv[1], "--selftest") == 0)
 		return RunSelfTest(argv[2], argv[3]);
 	if (argc >= 3 && strcmp(argv[1], "--roundtrip") == 0)

@@ -26,13 +26,13 @@ SclModel MakeDemoModel()
 {
 	SclModel m;
 	m.ied.name = "DEMOIED";
-	m.ied.desc = "ÑİÊ¾IED";
+	m.ied.desc = "æ¼”ç¤ºIED";
 	m.ied.apName = "accessPoint1";
 
 	SclLDevice ld;
 	ld.inst = "LD1";
 	ld.ldName = "LD1";
-	ld.desc = "ÑİÊ¾Âß¼­Éè±¸";
+	ld.desc = "æ¼”ç¤ºé€»è¾‘è®¾å¤‡";
 
 	ld.ln0 = SclTemplates::MakeLn("LLN0");
 	ld.ln0.inst = "";
@@ -42,35 +42,35 @@ SclModel MakeDemoModel()
 
 	SclLn mmxu = SclTemplates::MakeLn("MMXU");
 	mmxu.inst = "1";
-	mmxu.desc = "²âÁ¿";
+	mmxu.desc = "æµ‹é‡";
 	for (size_t i = 0; i < mmxu.dos.size(); ++i)
 	{
-		if (mmxu.dos[i].name == "TotW") mmxu.dos[i].desc = "×ÜÓĞ¹¦¹¦ÂÊ";
-		if (mmxu.dos[i].name == "TotVAr") mmxu.dos[i].desc = "×ÜÎŞ¹¦¹¦ÂÊ";
-		if (mmxu.dos[i].name == "TotPF") mmxu.dos[i].desc = "×Ü¹¦ÂÊÒòÊı";
-		if (mmxu.dos[i].name == "Hz") mmxu.dos[i].desc = "ÆµÂÊ";
+		if (mmxu.dos[i].name == "TotW") mmxu.dos[i].desc = "æ€»æœ‰åŠŸåŠŸç‡";
+		if (mmxu.dos[i].name == "TotVAr") mmxu.dos[i].desc = "æ€»æ— åŠŸåŠŸç‡";
+		if (mmxu.dos[i].name == "TotPF") mmxu.dos[i].desc = "æ€»åŠŸç‡å› æ•°";
+		if (mmxu.dos[i].name == "Hz") mmxu.dos[i].desc = "é¢‘ç‡";
 	}
 
 	SclLn ggio = SclTemplates::MakeLn("GGIO");
 	ggio.inst = "1";
-	ggio.desc = "Í¨ÓÃIO";
+	ggio.desc = "é€šç”¨IO";
 	for (size_t i = 0; i < ggio.dos.size(); ++i)
 	{
 		const std::string& dn = ggio.dos[i].name;
-		if (dn.compare(0, 3, "Ind") == 0) ggio.dos[i].desc = "¿ªÈë" + dn.substr(3);
-		if (dn.compare(0, 5, "SPCSO") == 0) ggio.dos[i].desc = "Ò£¿Ø" + dn.substr(5);
-		if (dn.compare(0, 4, "AnIn") == 0) ggio.dos[i].desc = "Ò£²â" + dn.substr(4);
+		if (dn.compare(0, 3, "Ind") == 0) ggio.dos[i].desc = "å¼€å…¥" + dn.substr(3);
+		if (dn.compare(0, 5, "SPCSO") == 0) ggio.dos[i].desc = "é¥æ§" + dn.substr(5);
+		if (dn.compare(0, 4, "AnIn") == 0) ggio.dos[i].desc = "é¥æµ‹" + dn.substr(4);
 	}
 
 	SclLn sgcb = SclTemplates::MakeLn("SGCB");
 	sgcb.inst = "";
-	sgcb.desc = "¶¨ÖµÇø¿ØÖÆ";
+	sgcb.desc = "å®šå€¼åŒºæ§åˆ¶";
 	for (size_t i = 0; i < sgcb.dos.size(); ++i)
 	{
-		if (sgcb.dos[i].name == "NumSG") sgcb.dos[i].desc = "¶¨ÖµÇø×ÜÊı";
-		if (sgcb.dos[i].name == "ActSG") sgcb.dos[i].desc = "µ±Ç°¶¨ÖµÇø";
-		if (sgcb.dos[i].name == "EditSG") sgcb.dos[i].desc = "±à¼­¶¨ÖµÇø";
-		if (sgcb.dos[i].name == "CnfEdit") sgcb.dos[i].desc = "È·ÈÏ±à¼­";
+		if (sgcb.dos[i].name == "NumSG") sgcb.dos[i].desc = "å®šå€¼åŒºæ€»æ•°";
+		if (sgcb.dos[i].name == "ActSG") sgcb.dos[i].desc = "å½“å‰å®šå€¼åŒº";
+		if (sgcb.dos[i].name == "EditSG") sgcb.dos[i].desc = "ç¼–è¾‘å®šå€¼åŒº";
+		if (sgcb.dos[i].name == "CnfEdit") sgcb.dos[i].desc = "ç¡®è®¤ç¼–è¾‘";
 	}
 
 	ld.lns.push_back(lphd);

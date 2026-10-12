@@ -24,19 +24,19 @@ namespace CsvWriter
 		}
 	}
 
-	static std::string CsvField(const std::string& gbkValue)
+	static std::string CsvField(const std::string& value)
 	{
-		bool needQuote = gbkValue.find(',') != std::string::npos ||
-			gbkValue.find('"') != std::string::npos;
+		bool needQuote = value.find(',') != std::string::npos ||
+			value.find('"') != std::string::npos;
 		if (!needQuote)
-			return gbkValue;
+			return value;
 		std::string out = "\"";
-		for (size_t i = 0; i < gbkValue.size(); ++i)
+		for (size_t i = 0; i < value.size(); ++i)
 		{
-			if (gbkValue[i] == '"')
+			if (value[i] == '"')
 				out += "\"\"";
 			else
-				out += gbkValue[i];
+				out += value[i];
 		}
 		out += "\"";
 		return out;
@@ -71,7 +71,7 @@ namespace CsvWriter
 
 		std::string nl = "\r\n";
 		std::string text;
-		text += "×é,×éÄÚĞòºÅ,SetCode,IED,LD,LN,DO,DA,¶ÁÒıÓÃ,¿ØÖÆÒıÓÃ,FC,CDC,ÖµÀàĞÍ,¿É¿Ø,ÃèÊö" + nl;
+		text += "ç»„,ç»„å†…åºå·,SetCode,IED,LD,LN,DO,DA,è¯»å¼•ç”¨,æ§åˆ¶å¼•ç”¨,FC,CDC,å€¼ç±»å‹,å¯æ§,æè¿°" + nl;
 
 		struct Section { const char* group; const std::vector<SMMSDataRef>* refs; bool isSg; };
 		Section sections[5] = {
@@ -111,22 +111,24 @@ namespace CsvWriter
 				text += ",";
 				text += CsvField(r.strCDC) + ",";
 				text += CsvField(r.strBType) + ",";
-				text += (r.bControllable ? "ÊÇ" : "·ñ");
+				text += (r.bControllable ? "æ˜¯" : "å¦");
 				text += ",";
 				text += CsvField(desc);
 				text += nl;
 			}
 		}
 
-		Q_UNUSED(model);
-		FILE* fp = fopen(path.c_str(), "wb");
-		if (fp == NULL)
-		{
-			errorText = "open csv file failed: " + path;
-			return false;
-		}
-		fwrite(text.data(), 1, text.size(), fp);
-		fclose(fp);
-		return true;
+	Q_UNUSED(model);
+	// æºç ä¸æ¨¡å‹å†…éƒ¨å‡ä¸º UTF-8ï¼›CSV è¾“å‡ºä¿æŒ GBK ç¼–ç ï¼Œå…¼å®¹æ—¢æœ‰ä¸‹æ¸¸å¯¼å…¥å·¥å…·
+	QByteArray gbkText = QString::fromUtf8(text.c_str(), (int)text.size()).toLocal8Bit();
+	FILE* fp = fopen(path.c_str(), "wb");
+	if (fp == NULL)
+	{
+		errorText = "open csv file failed: " + path;
+		return false;
+	}
+	fwrite(gbkText.constData(), 1, gbkText.size(), fp);
+	fclose(fp);
+	return true;
 	}
 }

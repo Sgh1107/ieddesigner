@@ -10,14 +10,12 @@
 
 namespace SclWriter
 {
-	static std::string XmlEscape(const std::string& gbkText)
+	static std::string XmlEscape(const std::string& utf8Text)
 	{
-		QString s = QString::fromLocal8Bit(gbkText.c_str());
-		QByteArray utf8 = s.toUtf8();
 		std::string out;
-		for (int i = 0; i < utf8.size(); ++i)
+		for (size_t i = 0; i < utf8Text.size(); ++i)
 		{
-			char c = utf8.at(i);
+			char c = utf8Text[i];
 			switch (c)
 			{
 			case '&': out += "&amp;"; break;
@@ -312,7 +310,7 @@ namespace SclWriter
 
 	bool WriteFile(const std::string& text, const std::string& path, std::string& errorText)
 	{
-		QFile f(QString::fromLocal8Bit(path.c_str()));
+		QFile f(QString::fromUtf8(path.c_str()));
 		if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
 		{
 			errorText = "open file failed: " + path;

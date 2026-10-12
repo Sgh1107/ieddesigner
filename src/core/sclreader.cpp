@@ -22,16 +22,6 @@ namespace SclReader
 		std::map<std::string, std::vector<std::pair<int, std::string> > > enumVals;
 	};
 
-	static std::string ToGbk(const QString& s)
-	{
-		return std::string(s.toLocal8Bit().constData());
-	}
-
-	static QString FromUtf8(const std::string& s)
-	{
-		return QString::fromUtf8(s.c_str());
-	}
-
 	static QDomElement ChildByLocalName(const QDomElement& parent, const char* localName)
 	{
 		QDomNode node = parent.firstChild();
@@ -59,7 +49,7 @@ namespace SclReader
 
 	static bool LoadDoc(const std::string& path, QDomDocument& doc, std::string& errorText)
 	{
-		QFile f(FromUtf8(path).toLocal8Bit().constData());
+		QFile f(QString::fromUtf8(path.c_str()));
 		if (!f.open(QIODevice::ReadOnly))
 		{
 			errorText = "open scl file failed: " + path;
@@ -71,7 +61,7 @@ namespace SclReader
 		int line = 0;
 		if (!doc.setContent(data, true, &err, &line))
 		{
-			errorText = std::string("xml parse failed at line ") + QString::number(line).toLocal8Bit().constData() + ": " + err.toLocal8Bit().constData();
+			errorText = std::string("xml parse failed at line ") + QString::number(line).toUtf8().constData() + ": " + err.toUtf8().constData();
 			return false;
 		}
 		return true;
@@ -86,12 +76,12 @@ namespace SclReader
 		std::vector<QDomElement> lnTypes = ChildrenByLocalName(templates, "LNodeType");
 		for (size_t i = 0; i < lnTypes.size(); ++i)
 		{
-			std::string id = lnTypes[i].attribute("id").toLocal8Bit().constData();
+			std::string id = lnTypes[i].attribute("id").toUtf8().constData();
 			std::vector<QDomElement> dos = ChildrenByLocalName(lnTypes[i], "DO");
 			for (size_t d = 0; d < dos.size(); ++d)
 			{
-				std::string name = dos[d].attribute("name").toLocal8Bit().constData();
-				std::string type = dos[d].attribute("type").toLocal8Bit().constData();
+				std::string name = dos[d].attribute("name").toUtf8().constData();
+				std::string type = dos[d].attribute("type").toUtf8().constData();
 				if (!name.empty() && !type.empty())
 					tables.lnTypeDos[id].push_back(std::make_pair(name, type));
 			}
@@ -100,16 +90,16 @@ namespace SclReader
 		std::vector<QDomElement> doTypes = ChildrenByLocalName(templates, "DOType");
 		for (size_t i = 0; i < doTypes.size(); ++i)
 		{
-			std::string id = doTypes[i].attribute("id").toLocal8Bit().constData();
-			tables.doTypeCdc[id] = doTypes[i].attribute("cdc").toLocal8Bit().constData();
+			std::string id = doTypes[i].attribute("id").toUtf8().constData();
+			tables.doTypeCdc[id] = doTypes[i].attribute("cdc").toUtf8().constData();
 			std::vector<QDomElement> das = ChildrenByLocalName(doTypes[i], "DA");
 			for (size_t d = 0; d < das.size(); ++d)
 			{
 				SclDa da;
-				da.name = das[d].attribute("name").toLocal8Bit().constData();
-				da.bType = das[d].attribute("bType").toLocal8Bit().constData();
-				da.fc = das[d].attribute("fc").toLocal8Bit().constData();
-				da.structType = das[d].attribute("type").toLocal8Bit().constData();
+				da.name = das[d].attribute("name").toUtf8().constData();
+				da.bType = das[d].attribute("bType").toUtf8().constData();
+				da.fc = das[d].attribute("fc").toUtf8().constData();
+				da.structType = das[d].attribute("type").toUtf8().constData();
 				if (!da.name.empty())
 					tables.doTypeDas[id].push_back(da);
 			}
@@ -118,14 +108,14 @@ namespace SclReader
 		std::vector<QDomElement> daTypes = ChildrenByLocalName(templates, "DAType");
 		for (size_t i = 0; i < daTypes.size(); ++i)
 		{
-			std::string id = daTypes[i].attribute("id").toLocal8Bit().constData();
+			std::string id = daTypes[i].attribute("id").toUtf8().constData();
 			std::vector<QDomElement> bdas = ChildrenByLocalName(daTypes[i], "BDA");
 			for (size_t d = 0; d < bdas.size(); ++d)
 			{
 				SclDa bda;
-				bda.name = bdas[d].attribute("name").toLocal8Bit().constData();
-				bda.bType = bdas[d].attribute("bType").toLocal8Bit().constData();
-				bda.structType = bdas[d].attribute("type").toLocal8Bit().constData();
+				bda.name = bdas[d].attribute("name").toUtf8().constData();
+				bda.bType = bdas[d].attribute("bType").toUtf8().constData();
+				bda.structType = bdas[d].attribute("type").toUtf8().constData();
 				if (!bda.name.empty())
 					tables.daTypeBdas[id].push_back(bda);
 			}
@@ -134,12 +124,12 @@ namespace SclReader
 		std::vector<QDomElement> enums = ChildrenByLocalName(templates, "EnumType");
 		for (size_t i = 0; i < enums.size(); ++i)
 		{
-			std::string id = enums[i].attribute("id").toLocal8Bit().constData();
+			std::string id = enums[i].attribute("id").toUtf8().constData();
 			std::vector<QDomElement> vals = ChildrenByLocalName(enums[i], "EnumVal");
 			for (size_t v = 0; v < vals.size(); ++v)
 			{
 				int ord = vals[v].attribute("ord").toInt();
-				tables.enumVals[id].push_back(std::make_pair(ord, vals[v].text().toLocal8Bit().constData()));
+				tables.enumVals[id].push_back(std::make_pair(ord, vals[v].text().toUtf8().constData()));
 			}
 		}
 	}
@@ -149,7 +139,7 @@ namespace SclReader
 		std::vector<std::string> names;
 		std::vector<QDomElement> ieds = ChildrenByLocalName(root, "IED");
 		for (size_t i = 0; i < ieds.size(); ++i)
-			names.push_back(ieds[i].attribute("name").toLocal8Bit().constData());
+			names.push_back(ieds[i].attribute("name").toUtf8().constData());
 		return names;
 	}
 
@@ -258,10 +248,10 @@ namespace SclReader
 	static SclLn BuildLn(ReadContext& ctx, const QDomElement& lnElem, bool isLn0)
 	{
 		SclLn ln;
-		ln.lnClass = lnElem.attribute("lnClass").toLocal8Bit().constData();
-		ln.inst = lnElem.attribute("inst").toLocal8Bit().constData();
-		ln.prefix = lnElem.attribute("prefix").toLocal8Bit().constData();
-		std::string lnType = lnElem.attribute("lnType").toLocal8Bit().constData();
+		ln.lnClass = lnElem.attribute("lnClass").toUtf8().constData();
+		ln.inst = lnElem.attribute("inst").toUtf8().constData();
+		ln.prefix = lnElem.attribute("prefix").toUtf8().constData();
+		std::string lnType = lnElem.attribute("lnType").toUtf8().constData();
 		if (isLn0)
 			ln.inst = "";
 
@@ -270,16 +260,16 @@ namespace SclReader
 		std::vector<QDomElement> dois = ChildrenByLocalName(lnElem, "DOI");
 		for (size_t i = 0; i < dois.size(); ++i)
 		{
-			std::string doName = dois[i].attribute("name").toLocal8Bit().constData();
+			std::string doName = dois[i].attribute("name").toUtf8().constData();
 			doiOrder.push_back(doName);
 			std::vector<QDomElement> dais = ChildrenByLocalName(dois[i], "DAI");
 			for (size_t d = 0; d < dais.size(); ++d)
 			{
 				if (dais[d].attribute("name") != QLatin1String("d"))
 					continue;
-				QDomElement val = ChildByLocalName(dais[d], "Val");
-				if (!val.isNull())
-					doiDesc[doName] = ToGbk(FromUtf8(val.text().toUtf8().constData()));
+			QDomElement val = ChildByLocalName(dais[d], "Val");
+			if (!val.isNull())
+				doiDesc[doName] = val.text().toUtf8().constData();
 			}
 		}
 
@@ -353,7 +343,7 @@ namespace SclReader
 		QDomElement iedElem;
 		for (size_t i = 0; i < ieds.size(); ++i)
 		{
-			if (ieds[i].attribute("name").toLocal8Bit().constData() == iedName)
+			if (ieds[i].attribute("name").toUtf8().constData() == iedName)
 				iedElem = ieds[i];
 		}
 		if (iedElem.isNull())
@@ -379,9 +369,9 @@ namespace SclReader
 				std::vector<QDomElement> caps = ChildrenByLocalName(subnets[s], "ConnectedAP");
 				for (size_t c = 0; c < caps.size(); ++c)
 				{
-					if (caps[c].attribute("iedName").toLocal8Bit().constData() != iedName)
+					if (caps[c].attribute("iedName").toUtf8().constData() != iedName)
 						continue;
-					model.ied.apName = caps[c].attribute("apName").toLocal8Bit().constData();
+					model.ied.apName = caps[c].attribute("apName").toUtf8().constData();
 					apFound = true;
 					QDomElement addr = ChildByLocalName(caps[c], "Address");
 					if (addr.isNull())
@@ -389,8 +379,8 @@ namespace SclReader
 					std::vector<QDomElement> ps = ChildrenByLocalName(addr, "P");
 					for (size_t p = 0; p < ps.size(); ++p)
 					{
-						std::string type = ps[p].attribute("type").toLocal8Bit().constData();
-						std::string value = ps[p].text().toLocal8Bit().constData();
+						std::string type = ps[p].attribute("type").toUtf8().constData();
+						std::string value = ps[p].text().toUtf8().constData();
 						if (type == "IP") model.ied.ip = value;
 						else if (type == "IP-SUBNET") model.ied.ipSubnet = value;
 						else if (type == "IP-GATEWAY") model.ied.ipGateway = value;
@@ -405,7 +395,7 @@ namespace SclReader
 
 		QDomElement ap = ChildByLocalName(iedElem, "AccessPoint");
 		if (!ap.isNull() && !ap.attribute("name").isEmpty())
-			model.ied.apName = ap.attribute("name").toLocal8Bit().constData();
+			model.ied.apName = ap.attribute("name").toUtf8().constData();
 		if (ap.isNull())
 		{
 			errorText = "access point not found in ied";
@@ -422,8 +412,8 @@ namespace SclReader
 		for (size_t i = 0; i < lds.size(); ++i)
 		{
 			SclLDevice ld;
-			ld.inst = lds[i].attribute("inst").toLocal8Bit().constData();
-			ld.ldName = lds[i].attribute("ldName").toLocal8Bit().constData();
+			ld.inst = lds[i].attribute("inst").toUtf8().constData();
+			ld.ldName = lds[i].attribute("ldName").toUtf8().constData();
 			if (ld.ldName.empty())
 				ld.ldName = ld.inst;
 

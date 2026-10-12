@@ -177,14 +177,14 @@ static const SclDoT kSgcb[] = {
 };
 
 static const SclLnT kLnTable[] = {
-	{ "LLN0", "Âß¼­½ÚµãÁã", kLln0, sizeof(kLln0) / sizeof(kLln0[0]) },
-	{ "LPHD", "ÎïÀíÉè±¸ÐÅÏ¢", kLphd, sizeof(kLphd) / sizeof(kLphd[0]) },
-	{ "MMXU", "ÈýÏà²âÁ¿", kMmxu, sizeof(kMmxu) / sizeof(kMmxu[0]) },
-	{ "CSWI", "¿ª¹Ø¿ØÖÆÆ÷", kCswi, sizeof(kCswi) / sizeof(kCswi[0]) },
-	{ "XCBR", "¶ÏÂ·Æ÷", kXcbr, sizeof(kXcbr) / sizeof(kXcbr[0]) },
-	{ "XSWI", "µ¶Õ¢/½ÓµØµ¶", kXswi, sizeof(kXswi) / sizeof(kXswi[0]) },
-	{ "GGIO", "Í¨ÓÃIO", kGgio, sizeof(kGgio) / sizeof(kGgio[0]) },
-	{ "SGCB", "¶¨ÖµÇø¿ØÖÆ", kSgcb, sizeof(kSgcb) / sizeof(kSgcb[0]) }
+	{ "LLN0", "é€»è¾‘èŠ‚ç‚¹é›¶", kLln0, sizeof(kLln0) / sizeof(kLln0[0]) },
+	{ "LPHD", "ç‰©ç†è®¾å¤‡ä¿¡æ¯", kLphd, sizeof(kLphd) / sizeof(kLphd[0]) },
+	{ "MMXU", "ä¸‰ç›¸æµ‹é‡", kMmxu, sizeof(kMmxu) / sizeof(kMmxu[0]) },
+	{ "CSWI", "å¼€å…³æŽ§åˆ¶å™¨", kCswi, sizeof(kCswi) / sizeof(kCswi[0]) },
+	{ "XCBR", "æ–­è·¯å™¨", kXcbr, sizeof(kXcbr) / sizeof(kXcbr[0]) },
+	{ "XSWI", "åˆ€é—¸/æŽ¥åœ°åˆ€", kXswi, sizeof(kXswi) / sizeof(kXswi[0]) },
+	{ "GGIO", "é€šç”¨IO", kGgio, sizeof(kGgio) / sizeof(kGgio[0]) },
+	{ "SGCB", "å®šå€¼åŒºæŽ§åˆ¶", kSgcb, sizeof(kSgcb) / sizeof(kSgcb[0]) }
 };
 
 namespace SclTemplates
