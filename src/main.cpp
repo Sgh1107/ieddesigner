@@ -565,6 +565,97 @@ static int RunSkeleton(const char* outPath)
 	return (v.refsParsed && diff == 0) ? 0 : 1;
 }
 
+// 精密仪器主题：全局 QSS（纯样式，无逻辑影响；仅 GUI 启动路径调用）
+// 令牌与 docs/ui-prototype-v1.html 保持一致
+static void ApplyTheme(QApplication& app)
+{
+	app.setStyle("Fusion");
+	app.setStyleSheet(
+		"QWidget { background: #DEE4EC; color: #131C29;"
+		"  font-family: \"Segoe UI\",\"Microsoft YaHei UI\",\"Microsoft YaHei\"; font-size: 9pt; }"
+		"QMainWindow::separator { background: #B0BDCD; width: 2px; height: 2px; }"
+
+		"QMenuBar { background: #FFFFFF; border-bottom: 1px solid #C8D2DE; }"
+		"QMenuBar::item { padding: 4px 10px; background: transparent; color: #49596D; }"
+		"QMenuBar::item:selected { background: #EEF1F6; color: #131C29; }"
+		"QMenu { background: #FFFFFF; border: 1px solid #B0BDCD; padding: 4px 0px; }"
+		"QMenu::item { padding: 5px 26px 5px 14px; color: #131C29; }"
+		"QMenu::item:selected { background: #D9E4F8; }"
+		"QMenu::separator { height: 1px; background: #C8D2DE; margin: 4px 8px; }"
+
+		"QToolBar { background: #FFFFFF; border: none; border-bottom: 1px solid #C8D2DE;"
+		"  padding: 2px 6px; spacing: 2px; }"
+		"QToolButton { background: transparent; border: 1px solid transparent; border-radius: 5px;"
+		"  padding: 3px 8px; color: #49596D; }"
+		"QToolButton:hover { background: #EEF1F6; border-color: #C8D2DE; color: #131C29; }"
+		"QToolButton:pressed, QToolButton:checked { background: #D9E4F8; color: #131C29; }"
+
+		"QPushButton { background: #FFFFFF; border: 1px solid #B0BDCD; border-radius: 5px;"
+		"  padding: 4px 14px; min-height: 20px; color: #131C29; }"
+		"QPushButton:hover { background: #EEF1F6; }"
+		"QPushButton:pressed { background: #D9E4F8; }"
+		"QPushButton:disabled { color: #7D8B9D; background: #EEF1F6; }"
+		"QPushButton:default { background: #1B54BE; border: 1px solid #143E8C; color: #FFFFFF; font-weight: 600; }"
+		"QPushButton:default:hover { background: #143E8C; }"
+
+		"QLineEdit, QComboBox, QSpinBox { background: #FFFFFF; border: 1px solid #B0BDCD; border-radius: 4px;"
+		"  padding: 3px 8px; min-height: 20px; color: #131C29; selection-background-color: #1B54BE; selection-color: #FFFFFF; }"
+		"QLineEdit:focus, QComboBox:focus, QSpinBox:focus { border: 1px solid #1B54BE; }"
+		"QLineEdit:disabled, QComboBox:disabled { background: #EEF1F6; color: #7D8B9D; }"
+		"QLineEdit:read-only { background: #EEF1F6; color: #49596D; }"
+		"QComboBox QAbstractItemView { background: #FFFFFF; border: 1px solid #B0BDCD;"
+		"  selection-background-color: #D9E4F8; selection-color: #131C29; }"
+
+		"QGroupBox { background: #FFFFFF; border: 1px solid #C8D2DE; border-radius: 6px;"
+		"  margin-top: 14px; padding-top: 6px; }"
+		"QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px;"
+		"  padding: 0 4px; color: #49596D; font-weight: 600; background: #DEE4EC; }"
+
+		"QDialog { background: #DEE4EC; }"
+		"QMessageBox { background: #FFFFFF; }"
+
+		"QTreeWidget, QTreeView { background: #EEF1F6; border: 1px solid #C8D2DE; }"
+		"QTreeView::item { height: 26px; border-left: 2px solid transparent; }"
+		"QTreeView::item:hover { background: #E4EAF2; }"
+		"QTreeView::item:selected { background: #D9E4F8; color: #131C29; border-left: 2px solid #1B54BE; }"
+
+		"QHeaderView { background: #FFFFFF; border: none; }"
+		"QHeaderView::section { background: #FFFFFF; color: #49596D; border: none;"
+		"  border-right: 1px solid #C8D2DE; border-bottom: 1px solid #B0BDCD; padding: 5px 8px; font-weight: 600; }"
+
+		"QPlainTextEdit, QTextEdit { background: #FFFFFF; border: 1px solid #C8D2DE; border-radius: 4px;"
+		"  font-family: \"Consolas\",\"Cascadia Mono\"; font-size: 9pt; color: #49596D;"
+		"  selection-background-color: #1B54BE; selection-color: #FFFFFF; }"
+		"QPlainTextEdit:focus { border: 1px solid #1B54BE; }"
+
+		"QDockWidget::title { background: #FFFFFF; border-bottom: 1px solid #C8D2DE;"
+		"  padding: 6px 12px; color: #131C29; font-weight: 600; }"
+
+		"QStatusBar { background: #FFFFFF; border-top: 1px solid #C8D2DE; color: #49596D; }"
+		"QStatusBar::item { border: none; }"
+
+		"QToolTip { background: #FFFFFF; color: #131C29; border: 1px solid #B0BDCD; padding: 4px 8px; }"
+
+		"QScrollBar:vertical { background: transparent; width: 10px; margin: 2px; }"
+		"QScrollBar::handle:vertical { background: #B0BDCD; border-radius: 4px; min-height: 28px; }"
+		"QScrollBar::handle:vertical:hover { background: #96A5B8; }"
+		"QScrollBar:horizontal { background: transparent; height: 10px; margin: 2px; }"
+		"QScrollBar::handle:horizontal { background: #B0BDCD; border-radius: 4px; min-width: 28px; }"
+		"QScrollBar::handle:horizontal:hover { background: #96A5B8; }"
+		"QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }"
+		"QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }"
+
+		"QListWidget, QTableWidget { background: #FFFFFF; border: 1px solid #C8D2DE; }"
+		"QListWidget::item { padding: 4px 6px; border-radius: 4px; }"
+		"QListWidget::item:selected { background: #D9E4F8; color: #131C29; }"
+		"QTableWidget::item { padding: 3px 6px; }"
+		"QTabWidget::pane { border: 1px solid #C8D2DE; border-radius: 4px; background: #FFFFFF; }"
+		"QTabBar::tab { background: #EEF1F6; color: #49596D; padding: 5px 14px;"
+		"  border: 1px solid #C8D2DE; border-bottom: none; border-top-left-radius: 4px; border-top-right-radius: 4px; }"
+		"QTabBar::tab:selected { background: #FFFFFF; color: #131C29; border-bottom: 2px solid #1B54BE; }"
+	);
+}
+
 int main(int argc, char** argv)
 {
 	if (argc >= 4 && strcmp(argv[1], "--selftest") == 0)
@@ -583,6 +674,7 @@ int main(int argc, char** argv)
 		return RunOnline(argv[2], atoi(argv[3]), argc >= 5 ? argv[4] : "");
 
 	QApplication app(argc, argv);
+	ApplyTheme(app);
 	QTranslator translator;
 	SetupTranslation(app, translator);
 

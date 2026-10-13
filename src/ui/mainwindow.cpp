@@ -232,20 +232,27 @@ MainWindow::MainWindow(QWidget* parent)
 	connect(m_tree, SIGNAL(itemSelectionChanged()), this, SLOT(onTreeSelectionChanged()));
 	connect(m_tree, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onTreeContextMenu(const QPoint&)));
 
-	// 属性面板样式：圆角输入框/下拉框（对齐 yx-ied-designer 的表单观感）
+	// 属性面板样式：精密仪器风（令牌对齐 docs/ui-prototype-v1.html，
+	// 白面板 + 发丝线输入框 + 信号蓝焦点环；objectName 沿用勿改，QSS 依赖它们）
 	setStyleSheet(QString(
 		"#propScroll, #propPanel { background: #FFFFFF; }"
-		"#propPanel QLabel { color: #37414E; background: transparent; }"
-		"#propPanel QLineEdit { border: 1px solid #D9D9D9; border-radius: 6px;"
-		"  padding: 4px 8px; min-height: 22px; background: #FFFFFF; }"
-		"#propPanel QLineEdit:read-only { background: #F5F6F8; color: #8A929E; border-color: #E8ECF1; }"
-		"#propPanel QComboBox { border: 1px solid #D9D9D9; border-radius: 6px;"
-		"  padding: 4px 26px 4px 8px; min-height: 22px; background: #FFFFFF; }"
+		"#propPanel QLabel { color: #49596D; background: transparent; font-size: 9pt; }"
+		"#propPanel QLineEdit { border: 1px solid #B0BDCD; border-radius: 4px;"
+		"  padding: 3px 8px; min-height: 20px; background: #FFFFFF; color: #131C29;"
+		"  selection-background-color: #1B54BE; selection-color: #FFFFFF; }"
+		"#propPanel QLineEdit:focus { border: 1px solid #1B54BE; }"
+		"#propPanel QLineEdit:read-only { background: #EEF1F6; color: #49596D; border-color: #C8D2DE; }"
+		"#propPanel QComboBox { border: 1px solid #B0BDCD; border-radius: 4px;"
+		"  padding: 3px 26px 3px 8px; min-height: 20px; background: #FFFFFF; color: #131C29; }"
+		"#propPanel QComboBox:focus { border: 1px solid #1B54BE; }"
 		"#propPanel QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: top right;"
 		"  width: 24px; border: none; background: transparent; }"
 		"#propPanel QComboBox::down-arrow { image: url(:/icons/chevron-down.svg); width: 12px; height: 12px; }"
 		"#propScroll QScrollBar:vertical { background: transparent; width: 8px; margin: 0; }"
-		"#propScroll QScrollBar::handle:vertical { background: #D5DBE4; border-radius: 4px; min-height: 30px; }"
+		"#propScroll QScrollBar::handle:vertical { background: #B0BDCD; border-radius: 4px; min-height: 30px; }"
+		"#propScroll QScrollBar::handle:vertical:hover { background: #96A5B8; }"
+		"#propScroll QScrollBar::add-line, #propScroll QScrollBar::sub-line { width: 0; height: 0; }"
+		"#propScroll QScrollBar::add-page, #propScroll QScrollBar::sub-page { background: transparent; }"
 	));
 
 	m_model = MakeNewModel();
@@ -431,7 +438,12 @@ QTreeWidgetItem* MainWindow::addNode(QTreeWidgetItem* parent, const QString& tex
 {
 	QTreeWidgetItem* item = parent ? new QTreeWidgetItem(parent) : new QTreeWidgetItem(m_tree);
 	item->setText(0, text);
-	item->setText(1, detail);
+	if (!detail.isEmpty())
+	{
+		item->setText(1, detail);
+		// Detail 列弱化为次级信息（纯视觉，配合精密仪器主题的层级表达）
+		item->setForeground(1, QBrush(QColor(0x7D, 0x8B, 0x9D)));
+	}
 	item->setData(0, Qt::UserRole, path);
 	item->setIcon(0, iconForPath(path));
 	return item;
