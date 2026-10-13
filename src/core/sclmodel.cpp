@@ -46,12 +46,12 @@ void SclDo::SetDaiVal(const std::string& daiName, const std::string& val)
 
 SclIed::SclIed()
 {
-	name = "TEMPLATE";
-	apName = "accessPoint1";
-	ip = "192.168.31.68";
-	ipSubnet = "255.255.255.0";
-	ipGateway = "192.168.31.1";
-	port = 102;
+	name = SclDefaults::IED_NAME;
+	apName = SclDefaults::AP_NAME;
+	ip = SclDefaults::IP;
+	ipSubnet = SclDefaults::IP_SUBNET;
+	ipGateway = SclDefaults::IP_GATEWAY;
+	port = SclDefaults::PORT;
 	serverTimeout = -1;
 	authentication = false;
 }
@@ -59,12 +59,12 @@ SclIed::SclIed()
 SclModel MakeNewModel()
 {
 	SclModel m;
-	m.ied.name = "TEMPLATE";
-	m.ied.desc = "TEMPLATE";
-	m.ied.manufacturer = "newfert";
-	m.ied.type = "RTUType";
-	m.ied.apName = "accessPoint1";
-	m.ied.serverTimeout = 30;
+	m.ied.name = SclDefaults::IED_NAME;
+	m.ied.desc = SclDefaults::IED_DESC;
+	m.ied.manufacturer = SclDefaults::MANUFACTURER;
+	m.ied.type = SclDefaults::IED_TYPE;
+	m.ied.apName = SclDefaults::AP_NAME;
+	m.ied.serverTimeout = SclDefaults::SERVER_TIMEOUT;
 	m.ied.authentication = true;
 	m.ied.servicesNameLength = "64";
 	const char* services[] = {
@@ -75,20 +75,20 @@ SclModel MakeNewModel()
 	for (size_t i = 0; i < sizeof(services) / sizeof(services[0]); ++i)
 		m.ied.services.push_back(services[i]);
 
-	// 通信参数（对齐 config_new.cid 规格，另加 MMS-Port）
-	m.ied.pParams.push_back(std::make_pair("OSI-AP-Title", "1,1,9999,1"));
-	m.ied.pParams.push_back(std::make_pair("OSI-AE-Qualifier", "12"));
-	m.ied.pParams.push_back(std::make_pair("OSI-PSEL", "00000001"));
-	m.ied.pParams.push_back(std::make_pair("OSI-SSEL", "0001"));
-	m.ied.pParams.push_back(std::make_pair("OSI-TSEL", "0001"));
-	m.ied.pParams.push_back(std::make_pair("IP", "192.168.1.100"));
-	m.ied.pParams.push_back(std::make_pair("IP-SUBNET", "255.255.255.0"));
-	m.ied.pParams.push_back(std::make_pair("IP-GATEWAY", "192.168.1.1"));
-	m.ied.pParams.push_back(std::make_pair("MMS-Port", "102"));
-	m.ied.ip = "192.168.1.100";
-	m.ied.ipSubnet = "255.255.255.0";
-	m.ied.ipGateway = "192.168.1.1";
-	m.ied.port = 102;
+	// 通信参数（默认值见 SclDefaults，新建对话框可逐工程覆盖）
+	m.ied.pParams.push_back(std::make_pair("OSI-AP-Title", SclDefaults::OSI_AP_TITLE));
+	m.ied.pParams.push_back(std::make_pair("OSI-AE-Qualifier", SclDefaults::OSI_AE_QUALIFIER));
+	m.ied.pParams.push_back(std::make_pair("OSI-PSEL", SclDefaults::OSI_PSEL));
+	m.ied.pParams.push_back(std::make_pair("OSI-SSEL", SclDefaults::OSI_SSEL));
+	m.ied.pParams.push_back(std::make_pair("OSI-TSEL", SclDefaults::OSI_TSEL));
+	m.ied.pParams.push_back(std::make_pair("IP", SclDefaults::IP));
+	m.ied.pParams.push_back(std::make_pair("IP-SUBNET", SclDefaults::IP_SUBNET));
+	m.ied.pParams.push_back(std::make_pair("IP-GATEWAY", SclDefaults::IP_GATEWAY));
+	m.ied.pParams.push_back(std::make_pair("MMS-Port", SclDefaults::MMS_PORT_STR));
+	m.ied.ip = SclDefaults::IP;
+	m.ied.ipSubnet = SclDefaults::IP_SUBNET;
+	m.ied.ipGateway = SclDefaults::IP_GATEWAY;
+	m.ied.port = SclDefaults::PORT;
 
 	// 通信段（完整模型化，树中可直接编辑）
 	SclConnectedAP cap;

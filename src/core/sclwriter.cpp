@@ -293,7 +293,11 @@ namespace SclWriter
 		for (size_t li = 0; li < ied.lds.size(); ++li)
 		{
 			const SclLDevice& ld = ied.lds[li];
-			text += "        <LDevice inst=\"" + XmlEscape(ld.inst) + "\">" + nl;
+			// LDevice 的 desc 属性（空则不输出）
+			std::string ldDescAttr;
+			if (!ld.desc.empty())
+				ldDescAttr = " desc=\"" + XmlEscape(ld.desc) + "\"";
+			text += "        <LDevice inst=\"" + XmlEscape(ld.inst) + "\"" + ldDescAttr + ">" + nl;
 			if (!ld.comment.empty())
 				text += "          <!--" + SanitizeComment(ld.comment) + "-->" + nl;
 
@@ -306,12 +310,16 @@ namespace SclWriter
 			{
 				const SclLn& ln = *allLns[i];
 				std::string lnTypeId = lnTypeIdByClass[ln.lnClass];
+				// LN/LN0 的 desc 属性（空则不输出，保持与旧格式兼容）
+				std::string descAttr;
+				if (!ln.desc.empty())
+					descAttr = " desc=\"" + XmlEscape(ln.desc) + "\"";
 				std::string open;
 				if (i == 0)
-					open = "          <LN0 lnClass=\"" + XmlEscape(ln.lnClass) + "\" inst=\"\" lnType=\"" + lnTypeId + "\">";
+					open = "          <LN0 lnClass=\"" + XmlEscape(ln.lnClass) + "\" inst=\"\" lnType=\"" + lnTypeId + "\"" + descAttr + ">";
 				else
 					open = "          <LN lnClass=\"" + XmlEscape(ln.lnClass) + "\" inst=\"" + XmlEscape(ln.inst) +
-					       "\" prefix=\"" + XmlEscape(ln.prefix) + "\" lnType=\"" + lnTypeId + "\">";
+					       "\" prefix=\"" + XmlEscape(ln.prefix) + "\" lnType=\"" + lnTypeId + "\"" + descAttr + ">";
 				text += open + nl;
 				if (!ln.comment.empty())
 					text += "            <!--" + SanitizeComment(ln.comment) + "-->" + nl;
@@ -336,7 +344,10 @@ namespace SclWriter
 				for (size_t s = 0; s < ln.dataSets.size(); ++s)
 				{
 					const SclDataSet& ds = ln.dataSets[s];
-					text += "            <DataSet name=\"" + XmlEscape(ds.name) + "\">" + nl;
+					std::string dsOpen = "            <DataSet name=\"" + XmlEscape(ds.name) + "\"";
+					if (!ds.desc.empty())
+						dsOpen += " desc=\"" + XmlEscape(ds.desc) + "\"";
+					text += dsOpen + ">" + nl;
 					for (size_t k = 0; k < ds.fcdas.size(); ++k)
 					{
 						const SclFcda& f = ds.fcdas[k];

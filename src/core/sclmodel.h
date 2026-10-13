@@ -5,6 +5,34 @@
 #include <vector>
 #include <utility>
 
+// ---------------- 新建模型默认值 ----------------
+// 集中维护新建工程的默认参数，SclIed 构造函数与 MakeNewModel 共用，
+// 避免两处各写一套导致默认值漂移（原构造函数为 192.168.31.x，MakeNewModel 为 192.168.1.x）。
+// 需要调整默认规格时只改这里。
+namespace SclDefaults
+{
+	const char* const IED_NAME          = "TEMPLATE";
+	const char* const IED_DESC          = "TEMPLATE";
+	const char* const MANUFACTURER      = "newfert";
+	const char* const IED_TYPE          = "RTUType";
+	const char* const AP_NAME           = "accessPoint1";
+	const char* const LD_INST           = "LD1";
+	// 通信参数（对齐 config_new.cid 规格）
+	const char* const IP                = "192.168.1.100";
+	const char* const IP_SUBNET         = "255.255.255.0";
+	const char* const IP_GATEWAY        = "192.168.1.1";
+	const int         PORT              = 102;
+	const char* const MMS_PORT_STR      = "102";
+	// 以下出厂设置
+	const char* const OSI_AP_TITLE      = "1,1,9999,1";
+	const char* const OSI_AE_QUALIFIER  = "12";
+	const char* const OSI_PSEL          = "00000001";
+	const char* const OSI_SSEL          = "0001";
+	const char* const OSI_TSEL          = "0001";
+	
+	const int         SERVER_TIMEOUT    = 30;
+}
+
 struct SclDa
 {
 	std::string name;

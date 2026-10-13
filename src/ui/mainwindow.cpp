@@ -21,6 +21,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
+#include <QGroupBox>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QDialogButtonBox>
@@ -111,6 +112,34 @@ namespace
 		return true;
 	}
 
+	// IPv4 地址合法性: 4 段十进制，每段 1-3 位、0-255
+	bool validIpv4(const std::string& s)
+	{
+		int parts = 0;
+		size_t start = 0;
+		for (size_t i = 0; i <= s.size(); ++i)
+		{
+			if (i == s.size() || s[i] == '.')
+			{
+				size_t len = i - start;
+				if (len == 0 || len > 3)
+					return false;
+				int v = 0;
+				for (size_t j = start; j < i; ++j)
+				{
+					if (s[j] < '0' || s[j] > '9')
+						return false;
+					v = v * 10 + (s[j] - '0');
+				}
+				if (v > 255)
+					return false;
+				parts++;
+				start = i + 1;
+			}
+		}
+		return parts == 4;
+	}
+
 	// 按 CDC 推断默认功能约束（引用展示用，精确 FC 需 DA 级信息）
 	std::string cdcToDefaultFc(const std::string& cdc)
 	{
@@ -130,6 +159,23 @@ namespace
 			{
 				ied.pParams[i].second = value;
 				return;
+			}
+		}
+	}
+
+	// IED 主接入点的通信参数同步到 Communication 段同名 ConnectedAP。
+	// writer 在 subnets 非空时只从 subnets 输出 P 参数，不同步则 IED 属性页的修改落不了盘。
+	void syncMainApPParams(SclModel& model)
+	{
+		for (size_t s = 0; s < model.subnets.size(); ++s)
+		{
+			for (size_t c = 0; c < model.subnets[s].aps.size(); ++c)
+			{
+				if (model.subnets[s].aps[c].iedName == model.ied.name)
+				{
+					model.subnets[s].aps[c].pParams = model.ied.pParams;
+					return;
+				}
 			}
 		}
 	}
@@ -772,7 +818,8 @@ void MainWindow::populateProps(const QString& path)
 			keys << tr("Instance") << tr("LDName") << tr("Description") << tr("Comment");
 			values << QString::fromUtf8(ld->inst.c_str()) << QString::fromUtf8(ld->ldName.c_str())
 				<< QString::fromUtf8(ld->desc.c_str()) << QString::fromUtf8(ld->comment.c_str());
-			editable << true << true << true << true;
+			// LDName 无对应 SCL 属性（完整 LD 名 = IED 名 + inst），只读展示，随 Instance 联动
+			editable << true << false << true << true;
 		}
 	}
 	else if (parts[0] == "ln0" || (parts[0] == "ln" && parts.size() == 3))
@@ -1163,6 +1210,9 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		}
 		default: return;
 		}
+		// IP/掩码/网关/端口修改后同步 Communication 段（导出时以 subnets 为准）
+		if (row >= 5 && row <= 8)
+			syncMainApPParams(m_model);
 	}
 	else if (path == "server")
 	{
@@ -1384,7 +1434,24 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		SclConnectedAP& cap = m_model.subnets[si].aps[ci];
 		if (row == 0) cap.apName = v;
 		else if (row == 1) cap.iedName = v;
-		else if (row >= 2 && row - 2 < (int)cap.pParams.size()) cap.pParams[row - 2].second = v;
+		else if (row >= 2 && row - 2 < (int)cap.pParams.size())
+		{
+			cap.pParams[row - 2].second = v;
+			// 主接入点的 P 参数回写 IED 字段（IED 属性页显示/旧格式导出用）
+			if (cap.iedName == m_model.ied.name)
+			{
+				m_model.ied.pParams = cap.pParams;
+				for (size_t p = 0; p < cap.pParams.size(); ++p)
+				{
+					const std::string& type = cap.pParams[p].first;
+					const std::string& pval = cap.pParams[p].second;
+					if (type == "IP") m_model.ied.ip = pval;
+					else if (type == "IP-SUBNET") m_model.ied.ipSubnet = pval;
+					else if (type == "IP-GATEWAY") m_model.ied.ipGateway = pval;
+					else if (type == "MMS-Port") m_model.ied.port = QString::fromUtf8(pval.c_str()).toInt();
+				}
+			}
+		}
 		else return;
 	}
 	else if (parts.size() == 4 && (parts[0] == "gse" || parts[0] == "smv"))
@@ -1564,12 +1631,36 @@ void MainWindow::onNewModel()
 	QDialog dlg(this);
 	dlg.setWindowTitle(tr("New model"));
 	QFormLayout* form = new QFormLayout(&dlg);
-	QLineEdit* iedEdit = new QLineEdit("TEMPLATE", &dlg);
-	QLineEdit* apEdit = new QLineEdit("accessPoint1", &dlg);
-	QLineEdit* ldEdit = new QLineEdit("LD1", &dlg);
+	QLineEdit* iedEdit = new QLineEdit(SclDefaults::IED_NAME, &dlg);
+	QLineEdit* apEdit = new QLineEdit(SclDefaults::AP_NAME, &dlg);
+	QLineEdit* ldEdit = new QLineEdit(SclDefaults::LD_INST, &dlg);
 	form->addRow(tr("IED name"), iedEdit);
 	form->addRow(tr("AccessPoint"), apEdit);
 	form->addRow(tr("LDevice inst"), ldEdit);
+
+	// 通信参数：默认值取 SclDefaults（核心层常量），逐工程可改
+	QGroupBox* commBox = new QGroupBox(tr("Communication parameters"), &dlg);
+	QFormLayout* commForm = new QFormLayout(commBox);
+	QLineEdit* ipEdit = new QLineEdit(SclDefaults::IP, &dlg);
+	QLineEdit* subnetEdit = new QLineEdit(SclDefaults::IP_SUBNET, &dlg);
+	QLineEdit* gwEdit = new QLineEdit(SclDefaults::IP_GATEWAY, &dlg);
+	QLineEdit* portEdit = new QLineEdit(SclDefaults::MMS_PORT_STR, &dlg);
+	QLineEdit* apTitleEdit = new QLineEdit(SclDefaults::OSI_AP_TITLE, &dlg);
+	QLineEdit* aeQualEdit = new QLineEdit(SclDefaults::OSI_AE_QUALIFIER, &dlg);
+	QLineEdit* pselEdit = new QLineEdit(SclDefaults::OSI_PSEL, &dlg);
+	QLineEdit* sselEdit = new QLineEdit(SclDefaults::OSI_SSEL, &dlg);
+	QLineEdit* tselEdit = new QLineEdit(SclDefaults::OSI_TSEL, &dlg);
+	commForm->addRow(tr("IP"), ipEdit);
+	commForm->addRow(tr("IP-SUBNET"), subnetEdit);
+	commForm->addRow(tr("IP-GATEWAY"), gwEdit);
+	commForm->addRow(tr("MMS-Port"), portEdit);
+	commForm->addRow(tr("OSI-AP-Title"), apTitleEdit);
+	commForm->addRow(tr("OSI-AE-Qualifier"), aeQualEdit);
+	commForm->addRow(tr("OSI-PSEL"), pselEdit);
+	commForm->addRow(tr("OSI-SSEL"), sselEdit);
+	commForm->addRow(tr("OSI-TSEL"), tselEdit);
+	form->addRow(commBox);
+
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	form->addRow(box);
 	connect(box, SIGNAL(accepted()), &dlg, SLOT(accept()));
@@ -1586,11 +1677,54 @@ void MainWindow::onNewModel()
 		return;
 	}
 
+	std::string ip = ipEdit->text().toUtf8().constData();
+	std::string ipSubnet = subnetEdit->text().toUtf8().constData();
+	std::string ipGateway = gwEdit->text().toUtf8().constData();
+	std::string portText = portEdit->text().toUtf8().constData();
+	if (!validIpv4(ip) || !validIpv4(ipSubnet) || !validIpv4(ipGateway))
+	{
+		QMessageBox::warning(this, tr("Validation failed"),
+			tr("IP / IP-SUBNET / IP-GATEWAY must be valid IPv4 addresses (e.g. 192.168.1.100)"));
+		return;
+	}
+	bool portOk = allDigits(portText) && portText.size() <= 5;
+	int port = 0;
+	if (portOk)
+	{
+		for (size_t i = 0; i < portText.size(); ++i)
+			port = port * 10 + (portText[i] - '0');
+		portOk = port >= 1 && port <= 65535;
+	}
+	if (!portOk)
+	{
+		QMessageBox::warning(this, tr("Validation failed"),
+			tr("MMS-Port must be a number between 1 and 65535"));
+		return;
+	}
+
 	m_model = MakeNewModel();
 	m_model.ied.name = iedEdit->text().toUtf8().constData();
 	m_model.ied.apName = apEdit->text().toUtf8().constData();
 	m_model.ied.lds[0].inst = ldEdit->text().toUtf8().constData();
 	m_model.ied.lds[0].ldName = m_model.ied.lds[0].inst;
+
+	// 通信参数落到 ied 字段与 Communication 段 P 参数（两处需同步）
+	m_model.ied.ip = ip;
+	m_model.ied.ipSubnet = ipSubnet;
+	m_model.ied.ipGateway = ipGateway;
+	m_model.ied.port = port;
+	updatePParam(m_model.ied, "IP", ip);
+	updatePParam(m_model.ied, "IP-SUBNET", ipSubnet);
+	updatePParam(m_model.ied, "IP-GATEWAY", ipGateway);
+	updatePParam(m_model.ied, "MMS-Port", portText);
+	updatePParam(m_model.ied, "OSI-AP-Title", apTitleEdit->text().toUtf8().constData());
+	updatePParam(m_model.ied, "OSI-AE-Qualifier", aeQualEdit->text().toUtf8().constData());
+	updatePParam(m_model.ied, "OSI-PSEL", pselEdit->text().toUtf8().constData());
+	updatePParam(m_model.ied, "OSI-SSEL", sselEdit->text().toUtf8().constData());
+	updatePParam(m_model.ied, "OSI-TSEL", tselEdit->text().toUtf8().constData());
+	if (!m_model.subnets.empty() && !m_model.subnets[0].aps.empty())
+		m_model.subnets[0].aps[0].pParams = m_model.ied.pParams;
+
 	m_currentFile.clear();
 	buildTree();
 	log(tr("New model: IED=%1 (with full communication parameters and Services declaration)").arg(iedEdit->text()));
