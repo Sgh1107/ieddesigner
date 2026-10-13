@@ -59,7 +59,7 @@ private:
 	SclLn* lnAt(int li, int ni);
 	SclDo* doAt(int li, int ni, int di);
 
-	// 第一期新增：编辑器基本功
+	// 编辑器基本功能
 	void setupMenus();
 	void rebuildRecentMenu();
 	void pushRecentFile(const QString& path);
@@ -80,7 +80,7 @@ private:
 	bool lnExistsInLd(const SclLDevice& ld, const std::string& prefix,
 		const std::string& lnClass, const std::string& inst, int skipNi) const;
 
-	// 第二期：DO/DAI 编辑与模板库
+	// DO/DAI 编辑与模板库
 	void loadUserTemplates();
 	void saveUserTemplates() const;
 	void manageTemplates();
@@ -96,7 +96,7 @@ private:
 	static bool daiTypeEditable(const std::string& bType);
 	bool daiValueValid(const SclDaiSpec& spec, const QString& value, QString& normalized) const;
 
-	// 第二期第二批：数据集/控制块/通信段 + 界面
+	// 数据集/控制块/通信段 + 界面
 	void setupToolbar();
 	QIcon iconForPath(const QString& path) const;
 	void addSubNet();

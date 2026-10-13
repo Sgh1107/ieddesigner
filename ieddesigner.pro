@@ -19,6 +19,10 @@ CONFIG	+= c++17 warn_off console
 # Qt6 源码统一为 UTF-8；MSVC 默认按系统 ANSI 代码页解释窄字面量，需显式指定
 win32-msvc:QMAKE_CXXFLAGS += /utf-8
 
+# Debug 增量链接（.ilk）状态偶发损坏会导致 exe 启动即崩（崩在 __scrt_initialize_type_info，
+# 与业务代码无关，全量重建可恢复）；本项目规模小，直接关闭增量链接规避该类问题
+win32-msvc:QMAKE_LFLAGS_DEBUG += /INCREMENTAL:NO
+
 INCLUDEPATH	+= src src/core src/ui validate $$PWD/../protocol/libprot61850 $$PWD/../include/libiec61850
 
 # libiec61850 静态库：MinGW 与本机重建的 MSVC 库（Debug/Release 分目录）分别配置

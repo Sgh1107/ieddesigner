@@ -13,3 +13,7 @@ export/
 .workbuddy
 ieddesigner.pro.user
 docs
+
+
+object_script.ieddesigner.Debug
+object_script.ieddesigner.Release

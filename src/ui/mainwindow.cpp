@@ -65,8 +65,8 @@ namespace
 
 	// 应用级剪贴板（IED/LD/LN 复制粘贴，进程内共享）
 	SclLDevice g_clipLd;
-	bool g_hasClipLd = false;
 	SclLn g_clipLn;
+	bool g_hasClipLd = false;
 	bool g_hasClipLn = false;
 
 	struct SclIedListResult
@@ -84,7 +84,7 @@ namespace
 		SclLoadResult() : ok(false) {}
 	};
 
-	// 标识符合法性：1-64 位，字母开头，仅字母数字下划线
+	// 标识符合法性: 1-64 位，字母开头，仅字母数字下划线
 	bool validIdent(const std::string& s)
 	{
 		if (s.empty() || s.size() > 64)
@@ -104,9 +104,10 @@ namespace
 	{
 		if (s.empty())
 			return false;
-		for (size_t i = 0; i < s.size(); ++i)
+		for (size_t i = 0; i < s.size(); ++i) {
 			if (s[i] < '0' || s[i] > '9')
 				return false;
+		}
 		return true;
 	}
 
@@ -347,6 +348,7 @@ void MainWindow::setBusy(bool busy)
 	m_onlineAct->setEnabled(!busy);
 }
 
+// qrc
 QIcon MainWindow::iconForPath(const QString& path) const
 {
 	QString kind = path.split(':').first();
@@ -1912,9 +1914,10 @@ void MainWindow::addAccessPoint()
 	serverAtCombo->addItem(tr("None (standalone access point)"), QString());
 	serverAtCombo->addItem(tr("Primary access point: %1").arg(QString::fromUtf8(m_model.ied.apName.c_str())),
 		QString::fromUtf8(m_model.ied.apName.c_str()));
-	for (size_t i = 0; i < m_model.ied.extraAps.size(); ++i)
+	for (size_t i = 0; i < m_model.ied.extraAps.size(); ++i) {
 		serverAtCombo->addItem(QString::fromUtf8(m_model.ied.extraAps[i].name.c_str()),
 			QString::fromUtf8(m_model.ied.extraAps[i].name.c_str()));
+	}
 	form->addRow(tr("Name"), nameEdit);
 	form->addRow(tr("ServerAt target"), serverAtCombo);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
@@ -2015,8 +2018,9 @@ void MainWindow::pasteLDevice()
 	SclLDevice ld = g_clipLd;
 	std::string base = ld.inst;
 	int n = 1;
-	while (ldInstExists(ld.inst, -1))
+	while (ldInstExists(ld.inst, -1)) {
 		ld.inst = base + "_" + std::to_string(n++);
+	}
 	ld.ldName = ld.inst;
 	m_model.ied.lds.push_back(ld);
 	buildTree();
@@ -2041,8 +2045,9 @@ void MainWindow::pasteLogicNode(int li)
 	SclLn ln = g_clipLn;
 	std::string base = ln.inst;
 	int n = 1;
-	while (lnExistsInLd(*ld, ln.prefix, ln.lnClass, ln.inst, -1))
+	while (lnExistsInLd(*ld, ln.prefix, ln.lnClass, ln.inst, -1)) {
 		ln.inst = base + "_" + std::to_string(n++);
+	}
 	ld->lns.push_back(ln);
 	buildTree();
 	log(tr("Paste logical node %1 to %2").arg(QString::fromUtf8(ln.Name().c_str())).arg(QString::fromUtf8(ld->inst.c_str())));
@@ -2133,6 +2138,7 @@ void MainWindow::showReference(const QString& path)
 	dlg.exec();
 }
 
+// 直接预览文件
 void MainWindow::onXmlPreview()
 {
 	std::string text = SclWriter::BuildSclText(m_model, true);
@@ -2278,8 +2284,9 @@ void MainWindow::openSclPath(const QString& path)
 		if (r.ieds.size() > 1)
 		{
 			QStringList items;
-			for (size_t i = 0; i < r.ieds.size(); ++i)
+			for (size_t i = 0; i < r.ieds.size(); ++i) {
 				items << QString::fromUtf8(r.ieds[i].c_str());
+			}
 			pick = QInputDialog::getItem(this, tr("Select IED"),
 				tr("The file contains multiple IEDs, select one to open:"), items, 0, false);
 			if (pick.isEmpty())
@@ -2315,8 +2322,9 @@ void MainWindow::openSclPath(const QString& path)
 				const SclLDevice& ld = m_model.ied.lds[li];
 				lnCount += (int)ld.lns.size();
 				doCount += (int)ld.ln0.dos.size();
-				for (size_t ni = 0; ni < ld.lns.size(); ++ni)
+				for (size_t ni = 0; ni < ld.lns.size(); ++ni) {
 					doCount += (int)ld.lns[ni].dos.size();
+				}
 			}
 			log(tr("Opened %1: IED=%2 LD=%3 LN=%4 DO=%5").arg(path)
 				.arg(pick)
@@ -2362,8 +2370,9 @@ void MainWindow::onImportJson()
 		const SclLDevice& ld = m_model.ied.lds[li];
 		lnCount += (int)ld.lns.size();
 		doCount += (int)ld.ln0.dos.size();
-		for (size_t ni = 0; ni < ld.lns.size(); ++ni)
+		for (size_t ni = 0; ni < ld.lns.size(); ++ni) {
 			doCount += (int)ld.lns[ni].dos.size();
+		}
 	}
 	log(tr("Online JSON imported %1: IED=%2 LD=%3 LN=%4 DO=%5").arg(path)
 		.arg(QString::fromUtf8(m_model.ied.name.c_str()))
@@ -2420,15 +2429,14 @@ void MainWindow::onOnlineFinished()
 		const SclLDevice& ld = m_model.ied.lds[li];
 		lnCount += (int)ld.lns.size();
 		doCount += (int)ld.ln0.dos.size();
-		for (size_t ni = 0; ni < ld.lns.size(); ++ni)
+		for (size_t ni = 0; ni < ld.lns.size(); ++ni) {
 			doCount += (int)ld.lns[ni].dos.size();
+		}
 	}
 	log(tr("Online read finished: IED=%1 LD=%2 LN=%3 DO=%4").arg(QString::fromUtf8(m_model.ied.name.c_str()))
 		.arg((int)m_model.ied.lds.size()).arg(lnCount).arg(doCount));
 	t->deleteLater();
 }
-
-// ---------------- 第二期第二批：数据集/控制块/通信段 ----------------
 
 bool MainWindow::parseBoolText(const QString& text, bool& out) const
 {
@@ -2666,8 +2674,9 @@ bool MainWindow::editDataSetDialog(SclDataSet& ds, int li)
 			}
 		};
 		addLnNode(mld.ln0, -1);
-		for (size_t n = 0; n < mld.lns.size(); ++n)
+		for (size_t n = 0; n < mld.lns.size(); ++n) {
 			addLnNode(mld.lns[n], (int)n);
+		}
 	}
 
 	// 按 FCDA 回显勾选状态
@@ -2695,7 +2704,7 @@ bool MainWindow::editDataSetDialog(SclDataSet& ds, int li)
 		}
 	}
 
-	// 简化回显：按 refs 顺序与 ds.fcdas 匹配（由 addFcdaRefs 一致性保证）
+	// 简化回显: 按 refs 顺序与 ds.fcdas 匹配（由 addFcdaRefs 一致性保证）
 	for (size_t r = 0; r < refs.size(); ++r)
 	{
 		SclLDevice* mld = ldAt(refs[r].li);
@@ -2774,29 +2783,35 @@ void MainWindow::deleteDataSet(int li, int ni, int di)
 	log(tr("Delete DataSet %1").arg(name));
 }
 
+// goose
 SclCommAddress* MainWindow::findGseAddress(const std::string& ldInst, const std::string& cbName)
 {
-	for (size_t s = 0; s < m_model.subnets.size(); ++s)
-		for (size_t c = 0; c < m_model.subnets[s].aps.size(); ++c)
-			for (size_t g = 0; g < m_model.subnets[s].aps[c].gses.size(); ++g)
+	for (size_t s = 0; s < m_model.subnets.size(); ++s) {
+		for (size_t c = 0; c < m_model.subnets[s].aps.size(); ++c) {
+			for (size_t g = 0; g < m_model.subnets[s].aps[c].gses.size(); ++g) 
 			{
 				SclCommAddress& a = m_model.subnets[s].aps[c].gses[g];
 				if (a.ldInst == ldInst && a.cbName == cbName)
 					return &a;
 			}
+		}
+	}
 	return 0;
 }
 
+// sv
 SclCommAddress* MainWindow::findSmvAddress(const std::string& ldInst, const std::string& cbName)
 {
-	for (size_t s = 0; s < m_model.subnets.size(); ++s)
-		for (size_t c = 0; c < m_model.subnets[s].aps.size(); ++c)
+	for (size_t s = 0; s < m_model.subnets.size(); ++s) {
+		for (size_t c = 0; c < m_model.subnets[s].aps.size(); ++c) {
 			for (size_t g = 0; g < m_model.subnets[s].aps[c].smvs.size(); ++g)
 			{
 				SclCommAddress& a = m_model.subnets[s].aps[c].smvs[g];
 				if (a.ldInst == ldInst && a.cbName == cbName)
 					return &a;
 			}
+		}
+	}
 	return 0;
 }
 
@@ -3152,13 +3167,13 @@ void MainWindow::deleteControlBlock(const QString& kind, int li, int ni, int idx
 	log(tr("Delete control block %1").arg(name));
 }
 
-// ---------------- 第二期：DO/DAI 编辑与模板库 ----------------
-
+// ---------------- DO/DAI 编辑与模板库 ----------------
 std::vector<SclCdcTemplate> MainWindow::mergedCdcTemplates() const
 {
 	std::vector<SclCdcTemplate> list = SclTemplates::BuiltinCdcTemplates();
-	for (size_t i = 0; i < m_userCdc.size(); ++i)
-		list.push_back(m_userCdc[i]);
+    for(const auto& item : m_userCdc) {
+        list.push_back(item);
+    }
 	return list;
 }
 
@@ -3357,8 +3372,9 @@ void MainWindow::saveUserTemplates() const
 		arr.append(o);
 	}
 	QFile f(dir + "/templates_user.json");
-	if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
 		f.write(QJsonDocument(arr).toJson());
+    }
 }
 
 void MainWindow::addDo(int li, int ni)
@@ -3402,8 +3418,9 @@ void MainWindow::addDo(int li, int ni)
 			continue;
 		}
 		bool dup = false;
-		for (size_t i = 0; i < ln->dos.size(); ++i)
+        for (size_t i = 0; i < ln->dos.size(); ++i) {
 			if (ln->dos[i].name == name) dup = true;
+        }
 		if (dup)
 		{
 			QMessageBox::warning(&dlg, tr("Validation failed"), tr("DO name must be unique within this logical node"));
@@ -3523,8 +3540,9 @@ void MainWindow::manageTemplates()
 			table->setItem(row, 1, new QTableWidgetItem(cdc));
 			table->setItem(row, 2, new QTableWidgetItem(QString::number((int)all[i].das.size())));
 			QString das;
-			for (size_t d = 0; d < all[i].das.size(); ++d)
+            for (size_t d = 0; d < all[i].das.size(); ++d) {
 				das += (d ? "、" : "") + QString::fromUtf8(all[i].das[d].name.c_str());
+            }
 			table->setItem(row, 3, new QTableWidgetItem(das));
 			table->item(row, 0)->setData(Qt::UserRole, (int)i);
 			++row;
@@ -3589,8 +3607,8 @@ void MainWindow::manageTemplates()
 		daTable->setHorizontalHeaderLabels(QStringList() << tr("name") << tr("bType") << tr("fc") << tr("type (required for Struct)"));
 		QStringList bTypes, fcs;
 		bTypes << "BOOLEAN" << "INT8" << "INT16" << "INT32" << "INT64" << "INT128" << "UINT8" << "UINT16"
-			<< "UINT32" << "UINT64" << "FLOAT32" << "FLOAT64" << "Enum" << "VisString255" << "VisString64"
-			<< "Unicode255" << "Quality" << "Timestamp" << "Struct" << "Octet64";
+               << "UINT32" << "UINT64" << "FLOAT32" << "FLOAT64" << "Enum" << "VisString255" << "VisString64"
+               << "Unicode255" << "Quality" << "Timestamp" << "Struct" << "Octet64";
 		fcs << "ST" << "MX" << "SP" << "SV" << "CF" << "DC" << "SG" << "SE" << "EX" << "BR" << "RP" << "CO";
 		auto addDaRow = [daTable, bTypes, fcs](const SclDa& da) {
 			int r = daTable->rowCount();
@@ -3608,8 +3626,9 @@ void MainWindow::manageTemplates()
 			daTable->setCellWidget(r, 2, fCombo);
 			daTable->setItem(r, 3, new QTableWidgetItem(QString::fromUtf8(da.structType.c_str())));
 		};
-		for (size_t i = 0; i < t.das.size(); ++i)
+        for (size_t i = 0; i < t.das.size(); ++i) {
 			addDaRow(t.das[i]);
+        }
 		lay->addWidget(daTable);
 		QHBoxLayout* daBtns = new QHBoxLayout;
 		QPushButton* rowAdd = new QPushButton(tr("Add DA"), &ed);
@@ -3633,8 +3652,9 @@ void MainWindow::manageTemplates()
 		});
 		connect(edBox, SIGNAL(accepted()), &ed, SLOT(accept()));
 		connect(edBox, SIGNAL(rejected()), &ed, SLOT(reject()));
-		if (ed.exec() != QDialog::Accepted)
+        if (ed.exec() != QDialog::Accepted) {
 			return false;
+        }
 		std::string cdc = cdcEdit->text().toUtf8().constData();
 		if (!validIdent(cdc))
 		{
@@ -3705,8 +3725,9 @@ void MainWindow::manageTemplates()
 			return;
 		}
 		SclCdcTemplate t = all[idx];
-		if (!editCdcDialog(t, false))
+        if (!editCdcDialog(t, false)) {
 			return;
+        }
 		for (size_t u = 0; u < m_userCdc.size(); ++u)
 		{
 			if (m_userCdc[u].cdc == all[idx].cdc)
