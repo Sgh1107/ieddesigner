@@ -23,6 +23,9 @@ public:
 	MainWindow(QWidget* parent = 0);
 	~MainWindow();
 
+protected:
+	void closeEvent(QCloseEvent* event) override;
+
 private slots:
 	void onNewModel();
 	void onOpenScl();
@@ -108,6 +111,14 @@ private:
 	void addDataSet(int li, int ni);
 	bool editDataSetDialog(SclDataSet& ds, int li);
 	void deleteDataSet(int li, int ni, int di);
+	// ExtRef 外部信号引用（GOOSE 订阅声明，第三期任务 1）
+	void addExternalRef(int li, int ni);
+	void editExternalRef(int li, int ni, int idx);
+	void deleteExternalRef(int li, int ni, int idx);
+	bool editExtRefDialog(SclExtRef& er);
+	// 第三期任务 6：保存/导出时自动追加当天修订历史条目
+	void ensureAutoHistory();
+	void setUiLanguage(const QString& lang);
 	void addReport(int li, int ni);
 	void addGseControl(int li, int ni);
 	void addSmvControl(int li, int ni);

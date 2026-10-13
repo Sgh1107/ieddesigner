@@ -2,6 +2,7 @@
 #include <QString>
 #include <QTranslator>
 #include <QCoreApplication>
+#include <QSettings>
 #include <QTreeWidget>
 #include <QGridLayout>
 #include <QtConcurrent>
@@ -92,11 +93,28 @@ static int RunRoundTrip(const char* srcPath)
 	printf("ROUNDTRIP reread=%d lds=%d err=%s\n",
 		rereadOk ? 1 : 0, (int)reloaded.ied.lds.size(), err.c_str());
 
+	// ExtRef 外部引用计数比对（第三期任务 1 回归）
+	int extSrc = 0, extDst = 0;
+	for (size_t i = 0; i < model.ied.lds.size(); ++i)
+	{
+		extSrc += (int)model.ied.lds[i].ln0.extRefs.size();
+		for (size_t n = 0; n < model.ied.lds[i].lns.size(); ++n)
+			extSrc += (int)model.ied.lds[i].lns[n].extRefs.size();
+	}
+	for (size_t i = 0; i < reloaded.ied.lds.size(); ++i)
+	{
+		extDst += (int)reloaded.ied.lds[i].ln0.extRefs.size();
+		for (size_t n = 0; n < reloaded.ied.lds[i].lns.size(); ++n)
+			extDst += (int)reloaded.ied.lds[i].lns[n].extRefs.size();
+	}
+	printf("ROUNDTRIP extRefs=%d->%d\n", extSrc, extDst);
+
 	bool same = orig.table.diRefs.size() == rt.table.diRefs.size() &&
 		orig.table.aiRefs.size() == rt.table.aiRefs.size() &&
 		orig.table.doRefs.size() == rt.table.doRefs.size() &&
 		orig.table.aoRefs.size() == rt.table.aoRefs.size() &&
-		orig.table.sgRefs.size() == rt.table.sgRefs.size();
+		orig.table.sgRefs.size() == rt.table.sgRefs.size() &&
+		extSrc == extDst;
 	printf("ROUNDTRIP same=%d\n", same ? 1 : 0);
 	return (same && rereadOk && orig.refsParsed) ? 0 : 1;
 }
@@ -173,6 +191,12 @@ static int RunOnline(const char* ip, int port, const char* ied)
 // 界面文案源码为英文，中文经 translate/ieddesigner_zh_CN.qm 加载
 static void SetupTranslation(QCoreApplication& app, QTranslator& translator)
 {
+	// 第三期任务 6：语言偏好（缺省中文；English 时不加载翻译，界面回退英文源文）
+	{
+		QSettings settings("newfert", "ieddesigner");
+		if (settings.value("language", "zh").toString() == "en")
+			return;
+	}
 	QString appDir = QCoreApplication::applicationDirPath();
 	QStringList dirs;
 	dirs << appDir << appDir + "/.." << QDir::currentPath();
@@ -464,6 +488,25 @@ static int RunSkeleton(const char* outPath)
 	scb.numOfSG = "2";
 	ld.ln0.settings.push_back(scb);
 
+	// ExtRef 外部引用（GOOSE 订阅声明）：DA 级 + DO 级各一条，验证回环
+	SclExtRef er;
+	er.iedName = "REMOTE1";
+	er.ldInst = "LD2";
+	er.lnClass = "GGIO";
+	er.lnInst = "1";
+	er.doName = "Ind1";
+	er.daName = "stVal";
+	er.desc = "sample external reference";
+	er.intAddr = "IN/1";
+	ld.ln0.extRefs.push_back(er);
+	SclExtRef er2;
+	er2.iedName = "REMOTE2";
+	er2.ldInst = "LD1";
+	er2.lnClass = "MMXU";
+	er2.lnInst = "1";
+	er2.doName = "TotW";
+	ld.ln0.extRefs.push_back(er2);
+
 	if (!model.subnets.empty())
 	{
 		SclCommAddress ga;
@@ -535,6 +578,18 @@ static int RunSkeleton(const char* outPath)
 		else if (!s0.dataSets.empty() && (d0.dataSets[0].fcdas.size() != s0.dataSets[0].fcdas.size() ||
 			d0.dataSets[0].fcdas[0].RefText() != s0.dataSets[0].fcdas[0].RefText()))
 		{ printf("SKELETON diff: FCDA\n"); diff++; }
+		if (d0.extRefs.size() != s0.extRefs.size())
+		{ printf("SKELETON diff: extRef count\n"); diff++; }
+		else
+		{
+			for (size_t e = 0; e < s0.extRefs.size(); ++e)
+			{
+				if (d0.extRefs[e].RefText() != s0.extRefs[e].RefText() ||
+					d0.extRefs[e].desc != s0.extRefs[e].desc ||
+					d0.extRefs[e].intAddr != s0.extRefs[e].intAddr)
+				{ printf("SKELETON extRef diff: %s\n", s0.extRefs[e].RefText().c_str()); diff++; }
+			}
+		}
 		if (d0.reports.size() != s0.reports.size() ||
 			(!s0.reports.empty() && (d0.reports[0].name != s0.reports[0].name ||
 				d0.reports[0].confRev != s0.reports[0].confRev || d0.reports[0].trgOps.present != s0.reports[0].trgOps.present ||

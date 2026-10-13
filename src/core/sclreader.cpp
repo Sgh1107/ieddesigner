@@ -439,6 +439,29 @@ namespace SclReader
 			}
 		}
 
+		// 外部信号引用 <Inputs><ExtRef/></Inputs>（LN0/LN 通用）
+		{
+			std::vector<QDomElement> inputsList = ChildrenByLocalName(lnElem, "Inputs");
+			for (size_t i = 0; i < inputsList.size(); ++i)
+			{
+				std::vector<QDomElement> ers = ChildrenByLocalName(inputsList[i], "ExtRef");
+				for (size_t k = 0; k < ers.size(); ++k)
+				{
+					SclExtRef er;
+					er.iedName = ers[k].attribute("iedName").toUtf8().constData();
+					er.ldInst = ers[k].attribute("ldInst").toUtf8().constData();
+					er.prefix = ers[k].attribute("prefix").toUtf8().constData();
+					er.lnClass = ers[k].attribute("lnClass").toUtf8().constData();
+					er.lnInst = ers[k].attribute("lnInst").toUtf8().constData();
+					er.doName = ers[k].attribute("doName").toUtf8().constData();
+					er.daName = ers[k].attribute("daName").toUtf8().constData();
+					er.desc = ers[k].attribute("desc").toUtf8().constData();
+					er.intAddr = ers[k].attribute("intAddr").toUtf8().constData();
+					ln.extRefs.push_back(er);
+				}
+			}
+		}
+
 		std::map<std::string, std::string> doiDesc;
 		std::map<std::string, std::vector<SclDai> > doiDais;
 		std::vector<std::string> doiOrder;

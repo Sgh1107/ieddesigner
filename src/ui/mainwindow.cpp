@@ -22,6 +22,7 @@
 #include <QHBoxLayout>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QCloseEvent>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QDialogButtonBox>
@@ -257,6 +258,16 @@ MainWindow::MainWindow(QWidget* parent)
 
 	m_model = MakeNewModel();
 	buildTree();
+	// 第三期任务 6：恢复上次窗口布局（几何 + 停靠窗格状态）
+	{
+		QSettings settings("newfert", "ieddesigner");
+		QByteArray geo = settings.value("winGeometry").toByteArray();
+		if (!geo.isEmpty())
+			restoreGeometry(geo);
+		QByteArray st = settings.value("winState").toByteArray();
+		if (!st.isEmpty())
+			restoreState(st);
+	}
 	m_tree->header()->setStretchLastSection(false);          // 关闭最后一列自动拉伸
 	m_tree->header()->setSectionResizeMode(0, QHeaderView::Stretch);  // 第0列自适应拉伸
 	m_tree->header()->setSectionResizeMode(1, QHeaderView::Stretch);  // 第1列自适应拉伸
@@ -270,6 +281,15 @@ MainWindow::~MainWindow()
 	logFileLine(tr("===== ieddesigner exited ====="));
 	if (m_logFile.isOpen())
 		m_logFile.close();
+}
+
+// 第三期任务 6：关闭时保存窗口布局（几何 + 停靠窗格状态）
+void MainWindow::closeEvent(QCloseEvent* event)
+{
+	QSettings settings("newfert", "ieddesigner");
+	settings.setValue("winGeometry", saveGeometry());
+	settings.setValue("winState", saveState());
+	QMainWindow::closeEvent(event);
 }
 
 void MainWindow::initLogFile()
@@ -349,6 +369,30 @@ void MainWindow::setupMenus()
 	connect(m_jsonAct, SIGNAL(triggered()), this, SLOT(onImportJson()));
 	m_onlineAct = toolMenu->addAction(tr("Read IED online"));
 	connect(m_onlineAct, SIGNAL(triggered()), this, SLOT(onOnlineRead()));
+	// 第三期任务 6：界面语言切换（重启生效）
+	toolMenu->addSeparator();
+	QMenu* langMenu = toolMenu->addMenu(tr("Language"));
+	QAction* zhAct = langMenu->addAction(tr("中文 (Chinese)"));
+	QAction* enAct = langMenu->addAction(tr("English"));
+	zhAct->setCheckable(true);
+	enAct->setCheckable(true);
+	QSettings langSettings("newfert", "ieddesigner");
+	bool useEn = (langSettings.value("language", "zh").toString() == "en");
+	zhAct->setChecked(!useEn);
+	enAct->setChecked(useEn);
+	connect(zhAct, &QAction::triggered, this, [this]() { setUiLanguage("zh"); });
+	connect(enAct, &QAction::triggered, this, [this]() { setUiLanguage("en"); });
+}
+
+// 切换界面语言：写入偏好，重启后由 SetupTranslation 生效
+void MainWindow::setUiLanguage(const QString& lang)
+{
+	QSettings settings("newfert", "ieddesigner");
+	if (settings.value("language", "zh").toString() == lang)
+		return;
+	settings.setValue("language", lang);
+	QMessageBox::information(this, tr("Language"),
+		tr("Language changed. Restart the application to take effect."));
 }
 
 void MainWindow::rebuildRecentMenu()
@@ -417,6 +461,7 @@ QIcon MainWindow::iconForPath(const QString& path) const
 	static QIcon smvIc(":/icons/smv.svg");
 	static QIcon dsIc(":/icons/dataset.svg");
 	static QIcon ctrlIc(":/icons/control.svg");
+	static QIcon refIc(":/icons/reference.svg");
 	if (kind == "ied") return ied;
 	if (kind == "history" || kind == "hitem") return historyIc;
 	if (kind == "ap" || kind == "cap") return serverIc;
@@ -429,6 +474,7 @@ QIcon MainWindow::iconForPath(const QString& path) const
 	if (kind == "gse" || kind == "gcb") return gseIc;
 	if (kind == "smv" || kind == "smcb") return smvIc;
 	if (kind == "ds-sec" || kind == "ds") return dsIc;
+	if (kind == "ext-sec" || kind == "extref") return refIc;
 	if (kind == "cb-sec" || kind == "rpt" || kind == "logcb" || kind == "setcb") return ctrlIc;
 	return QIcon();
 }
@@ -540,6 +586,17 @@ void MainWindow::buildTree()
 
 	// LN 下数据集与控制块分组（仅在非空时显示）
 	auto addCbSections = [&](QTreeWidgetItem* lnItem, int li, int ni, const SclLn& ln) {
+		// 外部信号引用分组（GOOSE 订阅声明）
+		if (!ln.extRefs.empty())
+		{
+			QTreeWidgetItem* sec = addNode(lnItem, tr("External references"),
+				tr("%1 item(s)").arg((int)ln.extRefs.size()),
+				QString("ext-sec:%1:%2").arg(li).arg(ni));
+			for (size_t s = 0; s < ln.extRefs.size(); ++s)
+				addNode(sec, tr("ExtRef ") + QString::fromUtf8(ln.extRefs[s].doName.c_str()),
+					QString::fromUtf8(ln.extRefs[s].RefText().c_str()),
+					QString("extref:%1:%2:%3").arg(li).arg(ni).arg((int)s));
+		}
 		if (!ln.dataSets.empty())
 		{
 			QTreeWidgetItem* sec = addNode(lnItem, tr("DataSets"), tr("%1 item(s)").arg((int)ln.dataSets.size()),
@@ -849,6 +906,24 @@ void MainWindow::populateProps(const QString& path)
 				<< QString::fromUtf8(ln->inst.c_str()) << QString::fromUtf8(ln->desc.c_str())
 				<< QString::fromUtf8(ln->comment.c_str());
 			editable << true << false << !isLn0 << true << true;
+		}
+	}
+	else if (parts.size() == 4 && parts[0] == "extref")
+	{
+		SclLn* ln = lnAt(parts[1].toInt(), parts[2].toInt());
+		int idx = parts[3].toInt();
+		if (ln && idx >= 0 && idx < (int)ln->extRefs.size())
+		{
+			const SclExtRef& er = ln->extRefs[idx];
+			keys << tr("iedName (source IED)") << tr("ldInst") << tr("prefix") << tr("lnClass")
+				<< tr("lnInst") << tr("doName") << tr("daName (empty = DO level)")
+				<< tr("Description") << tr("intAddr");
+			values << QString::fromUtf8(er.iedName.c_str()) << QString::fromUtf8(er.ldInst.c_str())
+				<< QString::fromUtf8(er.prefix.c_str()) << QString::fromUtf8(er.lnClass.c_str())
+				<< QString::fromUtf8(er.lnInst.c_str()) << QString::fromUtf8(er.doName.c_str())
+				<< QString::fromUtf8(er.daName.c_str()) << QString::fromUtf8(er.desc.c_str())
+				<< QString::fromUtf8(er.intAddr.c_str());
+			editable << true << true << true << true << true << true << true << true << true;
 		}
 	}
 	else if (parts.size() == 4 && parts[0] == "do")
@@ -1422,6 +1497,35 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		}
 		dobj->SetDaiVal(spec.path, normalized.toUtf8().constData());
 	}
+	else if (parts.size() == 4 && parts[0] == "extref")
+	{
+		SclLn* ln = lnAt(parts[1].toInt(), parts[2].toInt());
+		int idx = parts[3].toInt();
+		if (ln == 0 || idx < 0 || idx >= (int)ln->extRefs.size())
+			return;
+		SclExtRef& er = ln->extRefs[idx];
+		switch (row)
+		{
+		case 0:
+			if (v.empty()) { QMessageBox::warning(this, tr("Validation failed"), tr("iedName cannot be empty")); populateProps(path); return; }
+			er.iedName = v; break;
+		case 1: er.ldInst = v; break;
+		case 2: if (!v.empty() && !validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("Prefix may contain letters/digits/underscore only")); populateProps(path); return; } er.prefix = v; break;
+		case 3:
+			if (v.empty()) { QMessageBox::warning(this, tr("Validation failed"), tr("lnClass cannot be empty")); populateProps(path); return; }
+			if (!validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("lnClass must be valid")); populateProps(path); return; }
+			er.lnClass = v; break;
+		case 4: if (!v.empty() && !allDigits(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("lnInst must be digits")); populateProps(path); return; } er.lnInst = v; break;
+		case 5:
+			if (v.empty()) { QMessageBox::warning(this, tr("Validation failed"), tr("doName cannot be empty")); populateProps(path); return; }
+			if (!validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("doName must be valid")); populateProps(path); return; }
+			er.doName = v; break;
+		case 6: if (!v.empty() && !validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("daName must be valid")); populateProps(path); return; } er.daName = v; break;
+		case 7: er.desc = v; break;
+		case 8: er.intAddr = v; break;
+		default: return;
+		}
+	}
 	else if (parts.size() == 2 && parts[0] == "subnet")
 	{
 		int si = parts[1].toInt();
@@ -1778,6 +1882,9 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 	QAction* addDsAct = 0;
 	QAction* editDsAct = 0;
 	QAction* delDsAct = 0;
+	QAction* addExtRefAct = 0;
+	QAction* editExtRefAct = 0;
+	QAction* delExtRefAct = 0;
 	QAction* addRptAct = 0;
 	QAction* addGcbAct = 0;
 	QAction* addSmcbAct = 0;
@@ -1811,6 +1918,7 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 	else if (parts.size() == 2 && parts[0] == "ln0")
 	{
 		addDoAct = menu.addAction(tr("Add DO"));
+		addExtRefAct = menu.addAction(tr("Add external reference"));
 		addDsAct = menu.addAction(tr("Add DataSet"));
 		QMenu* cbMenu = menu.addMenu(tr("Add control block"));
 		addRptAct = cbMenu->addAction(tr("Report control (ReportControl)"));
@@ -1833,6 +1941,7 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 	else if (parts.size() == 3 && parts[0] == "ln")
 	{
 		addDoAct = menu.addAction(tr("Add DO"));
+		addExtRefAct = menu.addAction(tr("Add external reference"));
 		menu.addSeparator();
 		copyLnAct = menu.addAction(tr("Copy logical node"));
 		if (g_hasClipLn)
@@ -1852,6 +1961,15 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 	{
 		editDsAct = menu.addAction(tr("Edit FCDA members"));
 		delDsAct = menu.addAction(tr("Delete DataSet"));
+	}
+	else if (parts.size() == 3 && parts[0] == "ext-sec")
+	{
+		addExtRefAct = menu.addAction(tr("Add external reference"));
+	}
+	else if (parts.size() == 4 && parts[0] == "extref")
+	{
+		editExtRefAct = menu.addAction(tr("Edit external reference"));
+		delExtRefAct = menu.addAction(tr("Delete external reference"));
 	}
 	else if (parts.size() == 4 && (parts[0] == "rpt" || parts[0] == "gcb" || parts[0] == "smcb" || parts[0] == "logcb" || parts[0] == "setcb"))
 	{
@@ -1918,6 +2036,23 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 	if (picked == addSmvAddrAct) { addCommAddress(parts[1].toInt(), parts[2].toInt(), false); return; }
 	if (picked == delAddrAct) { deleteCommAddress(parts[1].toInt(), parts[2].toInt(), parts[0] == "gse", parts[3].toInt()); return; }
 	if (picked == addDsAct) { addDataSet(parts[1].toInt(), parts[0] == "ln0" ? -1 : parts[2].toInt()); return; }
+	if (picked == addExtRefAct)
+	{
+		int ni = (parts[0] == "ln0") ? -1 : parts[2].toInt();
+		addExternalRef(parts[1].toInt(), ni);
+		return;
+	}
+	if (picked == editExtRefAct || picked == delExtRefAct)
+	{
+		int li = parts[1].toInt();
+		int ni = parts[2].toInt();
+		int idx = parts[3].toInt();
+		if (picked == editExtRefAct)
+			editExternalRef(li, ni, idx);
+		else
+			deleteExternalRef(li, ni, idx);
+		return;
+	}
 	if (picked == editDsAct || picked == delDsAct)
 	{
 		int li = parts[1].toInt();
@@ -2305,6 +2440,30 @@ void MainWindow::onXmlPreview()
 	dlg.exec();
 }
 
+// 第三期任务 6：保存/导出时自动追加（或更新）当天修订历史条目
+void MainWindow::ensureAutoHistory()
+{
+	const QString today = QDate::currentDate().toString("yyyy-MM-dd");
+	const std::string whatText = tr("Model updated and saved").toUtf8().constData();
+	if (!m_model.history.empty())
+	{
+		SclHistoryItem& last = m_model.history.back();
+		if (QString::fromUtf8(last.when.c_str()).startsWith(today))
+		{
+			// 当天已有条目：更新说明，避免同日重复堆积
+			last.what = whatText;
+			return;
+		}
+	}
+	SclHistoryItem item;
+	item.version = today.toUtf8().constData();
+	item.what = whatText;
+	item.who = "";
+	item.when = today.toUtf8().constData();
+	item.why = "";
+	m_model.history.push_back(item);
+}
+
 void MainWindow::onSaveCidAs()
 {
 	QString path = QFileDialog::getSaveFileName(this, tr("Save CID"),
@@ -2322,6 +2481,7 @@ void MainWindow::onSaveCid()
 		onSaveCidAs();
 		return;
 	}
+	ensureAutoHistory();
 	std::string err;
 	std::string path = m_currentFile.toUtf8().constData();
 	if (!SclWriter::WriteCid(m_model, path, err))
@@ -2339,6 +2499,7 @@ void MainWindow::onExportIcd()
 		QDir::currentPath() + "/model.icd", tr("ICD (*.icd)"));
 	if (path.isEmpty())
 		return;
+	ensureAutoHistory();
 	std::string err;
 	if (!SclWriter::WriteIcd(m_model, path.toUtf8().constData(), err))
 	{
@@ -2355,6 +2516,7 @@ void MainWindow::onExportCid()
 		QDir::currentPath() + "/model.cid", tr("CID (*.cid)"));
 	if (path.isEmpty())
 		return;
+	ensureAutoHistory();
 	std::string err;
 	if (!SclWriter::WriteCid(m_model, path.toUtf8().constData(), err))
 	{
@@ -2780,126 +2942,129 @@ bool MainWindow::editDataSetDialog(SclDataSet& ds, int li)
 	if (ld == 0)
 		return false;
 
-	struct TreeRef { int li; int ni; int di; };
-	std::vector<TreeRef> refs;
+	// 第三期任务 2：FCDA 增量编辑 + DA 级成员 + 上移/下移/删除
+	std::vector<SclFcda> cur = ds.fcdas;   // 当前成员列表（提交时写回）
+	bool treeUpdating = false;
+
+	auto sameRef = [](const SclFcda& f, const SclFcda& g) {
+		return f.ldInst == g.ldInst && f.prefix == g.prefix && f.lnClass == g.lnClass &&
+			f.lnInst == g.lnInst && f.doName == g.doName && f.daName == g.daName;
+	};
 
 	QDialog dlg(this);
 	dlg.setWindowTitle(tr("Edit DataSet: %1").arg(QString::fromUtf8(ds.name.c_str())));
-	dlg.resize(880, 560);
+	dlg.resize(960, 620);
 	QVBoxLayout* vbox = new QVBoxLayout(&dlg);
-	vbox->addWidget(new QLabel(tr("Check DOs to generate FCDA members (in tree order); uncheck to remove."), &dlg));
+	vbox->addWidget(new QLabel(tr("Check a DO for DO-level FCDA, or a DAI for DA-level FCDA; uncheck to remove. Use buttons to reorder the list."), &dlg));
 	QHBoxLayout* mid = new QHBoxLayout;
 	QTreeWidget* srcTree = new QTreeWidget(&dlg);
 	srcTree->setHeaderLabels(QStringList() << tr("Source model") << tr("CDC"));
 	mid->addWidget(srcTree, 3);
+
+	QVBoxLayout* listLay = new QVBoxLayout;
 	QListWidget* fcdaList = new QListWidget(&dlg);
-	fcdaList->setSelectionMode(QAbstractItemView::NoSelection);
-	mid->addWidget(fcdaList, 2);
+	fcdaList->setSelectionMode(QAbstractItemView::SingleSelection);
+	listLay->addWidget(fcdaList, 1);
+	QHBoxLayout* listBtns = new QHBoxLayout;
+	QPushButton* upBtn = new QPushButton(tr("Move up"), &dlg);
+	QPushButton* downBtn = new QPushButton(tr("Move down"), &dlg);
+	QPushButton* removeBtn = new QPushButton(tr("Remove"), &dlg);
+	listBtns->addWidget(upBtn);
+	listBtns->addWidget(downBtn);
+	listBtns->addWidget(removeBtn);
+	listBtns->addStretch(1);
+	listLay->addLayout(listBtns);
+	mid->addLayout(listLay, 2);
 	vbox->addLayout(mid);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
 	vbox->addWidget(box);
 
-	// 构建源树：LD -> LN -> DO(可勾选)
-	int refIdx = 0;
+	auto findFcdaIndex = [&](const SclFcda& f) -> int {
+		for (size_t k = 0; k < cur.size(); ++k)
+			if (sameRef(cur[k], f))
+				return (int)k;
+		return -1;
+	};
+
+	auto refreshList = [&]() {
+		fcdaList->clear();
+		for (size_t k = 0; k < cur.size(); ++k)
+		{
+			QString text = QString::fromUtf8(cur[k].RefText().c_str()) +
+				QString(" [") + QString::fromUtf8(cur[k].fc.c_str()) + QString("]");
+			if (cur[k].daName.empty())
+				text += tr(" (DO level)");
+			fcdaList->addItem(text);
+		}
+	};
+
+	// 源树：LD -> LN -> DO(勾选=DO 级) -> DAI(勾选=DA 级)；UserRole 存 "li:ni:di[:k]"
+	auto addLnNodes = [&](QTreeWidgetItem* ldItem, const SclLDevice& mld, const SclLn& mln, int l, int ni) {
+		QTreeWidgetItem* lnItem = new QTreeWidgetItem(ldItem, QStringList(QString::fromUtf8(mln.Name().c_str())));
+		for (size_t d = 0; d < mln.dos.size(); ++d)
+		{
+			const SclDo& mdo = mln.dos[d];
+			QTreeWidgetItem* doItem = new QTreeWidgetItem(lnItem,
+				QStringList() << QString::fromUtf8(mdo.name.c_str()) << QString::fromUtf8(mdo.cdc.c_str()));
+			doItem->setData(0, Qt::UserRole, QString("%1:%2:%3").arg(l).arg(ni).arg((int)d));
+			SclFcda f;
+			f.iedName = m_model.ied.name;
+			f.ldInst = mld.inst;
+			f.prefix = mln.prefix;
+			f.lnClass = mln.lnClass;
+			f.lnInst = mln.inst;
+			f.doName = mdo.name;
+			f.fc = cdcToDefaultFc(mdo.cdc);
+			if (findFcdaIndex(f) >= 0)
+				doItem->setCheckState(0, Qt::Checked);
+			else
+				doItem->setCheckState(0, Qt::Unchecked);
+			std::vector<SclDaiSpec> specs = daiSpecsFor(mdo);
+			for (size_t k = 0; k < specs.size(); ++k)
+			{
+				if (specs[k].path == "d")
+					continue;
+				QTreeWidgetItem* daiItem = new QTreeWidgetItem(doItem,
+					QStringList() << QString::fromUtf8(specs[k].path.c_str())
+						<< QString::fromUtf8(specs[k].fc.c_str()));
+				daiItem->setData(0, Qt::UserRole,
+					QString("%1:%2:%3:%4").arg(l).arg(ni).arg((int)d).arg((int)k));
+				SclFcda df = f;
+				df.daName = specs[k].path;
+				df.fc = specs[k].fc;
+				if (findFcdaIndex(df) >= 0)
+					daiItem->setCheckState(0, Qt::Checked);
+				else
+					daiItem->setCheckState(0, Qt::Unchecked);
+			}
+		}
+	};
+	treeUpdating = true;
 	for (size_t l = 0; l < m_model.ied.lds.size(); ++l)
 	{
 		const SclLDevice& mld = m_model.ied.lds[l];
 		QTreeWidgetItem* ldItem = new QTreeWidgetItem(srcTree, QStringList(QString::fromUtf8(mld.inst.c_str())));
-		auto addLnNode = [&](const SclLn& mln, int ni) {
-			QTreeWidgetItem* lnItem = new QTreeWidgetItem(ldItem, QStringList(QString::fromUtf8(mln.Name().c_str())));
-			for (size_t d = 0; d < mln.dos.size(); ++d)
-			{
-				QTreeWidgetItem* doItem = new QTreeWidgetItem(lnItem,
-					QStringList() << QString::fromUtf8(mln.dos[d].name.c_str()) << QString::fromUtf8(mln.dos[d].cdc.c_str()));
-				doItem->setCheckState(0, Qt::Unchecked);
-				TreeRef ref;
-				ref.li = (int)l;
-				ref.ni = ni;
-				ref.di = (int)d;
-				refs.push_back(ref);
-			}
-		};
-		addLnNode(mld.ln0, -1);
-		for (size_t n = 0; n < mld.lns.size(); ++n) {
-			addLnNode(mld.lns[n], (int)n);
-		}
+		addLnNodes(ldItem, mld, mld.ln0, (int)l, -1);
+		for (size_t n = 0; n < mld.lns.size(); ++n)
+			addLnNodes(ldItem, mld, mld.lns[n], (int)l, (int)n);
 	}
+	treeUpdating = false;
 
-	// 按 FCDA 回显勾选状态
-	for (size_t k = 0; k < ds.fcdas.size(); ++k)
-	{
-		const SclFcda& f = ds.fcdas[k];
-		for (size_t r = 0; r < refs.size(); ++r)
-		{
-			SclLDevice* mld = ldAt(refs[r].li);
-			SclLn* mln = lnAt(refs[r].li, refs[r].ni);
-			SclDo* mdo = doAt(refs[r].li, refs[r].ni, refs[r].di);
-			if (mld == 0 || mln == 0 || mdo == 0)
-				continue;
-			if (mld->inst == f.ldInst && mln->Name() == (f.prefix + f.lnClass + f.lnInst) && mdo->name == f.doName)
-			{
-				QTreeWidgetItem* top = srcTree->topLevelItem(0);
-				for (int t = 0; t < srcTree->topLevelItemCount(); ++t)
-				{
-					if (srcTree->topLevelItem(t)->text(0) == QString::fromUtf8(mld->inst.c_str()))
-						top = srcTree->topLevelItem(t);
-				}
-				// 逐层定位（按 refs[r] 的结构遍历太繁琐，直接按序号还原）
-				break;
-			}
-		}
-	}
-
-	// 简化回显: 按 refs 顺序与 ds.fcdas 匹配（由 addFcdaRefs 一致性保证）
-	for (size_t r = 0; r < refs.size(); ++r)
-	{
-		SclLDevice* mld = ldAt(refs[r].li);
-		SclLn* mln = lnAt(refs[r].li, refs[r].ni);
-		SclDo* mdo = doAt(refs[r].li, refs[r].ni, refs[r].di);
+	// 勾选/取消勾选 → 增量追加/移除成员（保持现有顺序）
+	QObject::connect(srcTree, &QTreeWidget::itemChanged, [&](QTreeWidgetItem* it, int col) {
+		if (treeUpdating || col != 0)
+			return;
+		QStringList pp = it->data(0, Qt::UserRole).toString().split(':');
+		if (pp.size() < 3)
+			return;
+		int li = pp[0].toInt();
+		int ni = pp[1].toInt();
+		int di = pp[2].toInt();
+		SclLDevice* mld = ldAt(li);
+		SclLn* mln = lnAt(li, ni);
+		SclDo* mdo = doAt(li, ni, di);
 		if (mld == 0 || mln == 0 || mdo == 0)
-			continue;
-		bool checked = false;
-		for (size_t k = 0; k < ds.fcdas.size(); ++k)
-		{
-			const SclFcda& f = ds.fcdas[k];
-			if (mld->inst == f.ldInst && mln->Name() == (f.prefix + f.lnClass + f.lnInst) && mdo->name == f.doName)
-			{
-				checked = true;
-				break;
-			}
-		}
-		if (checked)
-		{
-			QTreeWidgetItem* ldItem = srcTree->topLevelItem(refs[r].li);
-			if (ldItem == 0) continue;
-			QTreeWidgetItem* lnItem = (refs[r].ni < 0) ? ldItem->child(0) : ldItem->child(refs[r].ni + 1);
-			if (lnItem == 0) continue;
-			QTreeWidgetItem* doItem = lnItem->child(refs[r].di);
-			if (doItem)
-				doItem->setCheckState(0, Qt::Checked);
-		}
-	}
-	Q_UNUSED(refIdx);
-
-	if (dlg.exec() != QDialog::Accepted)
-		return false;
-
-	// 按树顺序收集勾选的 DO
-	std::vector<SclFcda> newFcdas;
-	for (size_t r = 0; r < refs.size(); ++r)
-	{
-		QTreeWidgetItem* ldItem = srcTree->topLevelItem(refs[r].li);
-		if (ldItem == 0) continue;
-		QTreeWidgetItem* lnItem = (refs[r].ni < 0) ? ldItem->child(0) : ldItem->child(refs[r].ni + 1);
-		if (lnItem == 0) continue;
-		QTreeWidgetItem* doItem = lnItem->child(refs[r].di);
-		if (doItem == 0 || doItem->checkState(0) != Qt::Checked)
-			continue;
-		SclLDevice* mld = ldAt(refs[r].li);
-		SclLn* mln = lnAt(refs[r].li, refs[r].ni);
-		SclDo* mdo = doAt(refs[r].li, refs[r].ni, refs[r].di);
-		if (mld == 0 || mln == 0 || mdo == 0)
-			continue;
+			return;
 		SclFcda f;
 		f.iedName = m_model.ied.name;
 		f.ldInst = mld->inst;
@@ -2907,10 +3072,120 @@ bool MainWindow::editDataSetDialog(SclDataSet& ds, int li)
 		f.lnClass = mln->lnClass;
 		f.lnInst = mln->inst;
 		f.doName = mdo->name;
-		f.fc = cdcToDefaultFc(mdo->cdc);
-		newFcdas.push_back(f);
-	}
-	ds.fcdas = newFcdas;
+		bool checked = (it->checkState(0) == Qt::Checked);
+		if (pp[0] == "do")
+		{
+			f.fc = cdcToDefaultFc(mdo->cdc);
+		}
+		else if (pp[0] == "dai" && pp.size() >= 4)
+		{
+			std::vector<SclDaiSpec> specs = daiSpecsFor(*mdo);
+			int k = pp[3].toInt();
+			if (k < 0 || k >= (int)specs.size())
+				return;
+			f.daName = specs[k].path;
+			f.fc = specs[k].fc;
+		}
+		else
+		{
+			return;
+		}
+		int idx = findFcdaIndex(f);
+		if (checked && idx < 0)
+			cur.push_back(f);
+		else if (!checked && idx >= 0)
+			cur.erase(cur.begin() + idx);
+		refreshList();
+	});
+
+	// 由 FCDA 反查树项并取消勾选（删除按钮联动）
+	auto uncheckFcda = [&](const SclFcda& f) {
+		for (int t = 0; t < srcTree->topLevelItemCount(); ++t)
+		{
+			QTreeWidgetItem* ldItem = srcTree->topLevelItem(t);
+			for (int a = 0; a < ldItem->childCount(); ++a)
+			{
+				QTreeWidgetItem* lnItem = ldItem->child(a);
+				for (int b = 0; b < lnItem->childCount(); ++b)
+				{
+					QTreeWidgetItem* doItem = lnItem->child(b);
+					for (int c = -1; c < doItem->childCount(); ++c)
+					{
+						QTreeWidgetItem* it = (c < 0) ? doItem : doItem->child(c);
+						QStringList pp = it->data(0, Qt::UserRole).toString().split(':');
+						if (pp.size() < 3)
+							continue;
+						int li2 = pp[0].toInt();
+						int ni2 = pp[1].toInt();
+						int di2 = pp[2].toInt();
+						SclLDevice* mld = ldAt(li2);
+						SclLn* mln = lnAt(li2, ni2);
+						SclDo* mdo = doAt(li2, ni2, di2);
+						if (mld == 0 || mln == 0 || mdo == 0)
+							continue;
+						SclFcda g;
+						g.iedName = m_model.ied.name;
+						g.ldInst = mld->inst;
+						g.prefix = mln->prefix;
+						g.lnClass = mln->lnClass;
+						g.lnInst = mln->inst;
+						g.doName = mdo->name;
+						if (pp[0] == "dai" && pp.size() >= 4)
+						{
+							std::vector<SclDaiSpec> specs = daiSpecsFor(*mdo);
+							int k = pp[3].toInt();
+							if (k < 0 || k >= (int)specs.size())
+								continue;
+							g.daName = specs[k].path;
+							g.fc = specs[k].fc;
+						}
+						else
+						{
+							g.fc = cdcToDefaultFc(mdo->cdc);
+						}
+						if (sameRef(g, f))
+						{
+							it->setCheckState(0, Qt::Unchecked);
+							return;
+						}
+					}
+				}
+			}
+		}
+	};
+
+	QObject::connect(upBtn, &QPushButton::clicked, [&]() {
+		int row = fcdaList->currentRow();
+		if (row <= 0 || row >= (int)cur.size())
+			return;
+		std::swap(cur[row], cur[row - 1]);
+		refreshList();
+		fcdaList->setCurrentRow(row - 1);
+	});
+	QObject::connect(downBtn, &QPushButton::clicked, [&]() {
+		int row = fcdaList->currentRow();
+		if (row < 0 || row + 1 >= (int)cur.size())
+			return;
+		std::swap(cur[row], cur[row + 1]);
+		refreshList();
+		fcdaList->setCurrentRow(row + 1);
+	});
+	QObject::connect(removeBtn, &QPushButton::clicked, [&]() {
+		int row = fcdaList->currentRow();
+		if (row < 0 || row >= (int)cur.size())
+			return;
+		SclFcda f = cur[row];
+		cur.erase(cur.begin() + row);
+		uncheckFcda(f);
+		refreshList();
+	});
+
+	refreshList();
+
+	if (dlg.exec() != QDialog::Accepted)
+		return false;
+
+	ds.fcdas = cur;
 	log(tr("DataSet %1 updated to %2 FCDA").arg(QString::fromUtf8(ds.name.c_str())).arg((int)ds.fcdas.size()));
 	return true;
 }
@@ -2927,6 +3202,196 @@ void MainWindow::deleteDataSet(int li, int ni, int di)
 	ln->dataSets.erase(ln->dataSets.begin() + di);
 	buildTree();
 	log(tr("Delete DataSet %1").arg(name));
+}
+
+// ---------------- ExtRef 外部信号引用（第三期任务 1） ----------------
+
+// 编辑一条 ExtRef：左侧当前模型浏览树（点击 DO/DAI 自动填充表单），右侧 9 字段表单
+bool MainWindow::editExtRefDialog(SclExtRef& er)
+{
+	QDialog dlg(this);
+	dlg.setWindowTitle(tr("External reference (ExtRef)"));
+	dlg.resize(900, 560);
+	QVBoxLayout* vbox = new QVBoxLayout(&dlg);
+	vbox->addWidget(new QLabel(tr("Click a DO/DAI in the source tree to fill the form; edit fields for cross-IED references."), &dlg));
+	QHBoxLayout* mid = new QHBoxLayout;
+	QTreeWidget* srcTree = new QTreeWidget(&dlg);
+	srcTree->setHeaderLabels(QStringList() << tr("Source model") << tr("CDC"));
+	mid->addWidget(srcTree, 3);
+	QWidget* formPanel = new QWidget(&dlg);
+	QFormLayout* form = new QFormLayout(formPanel);
+	QLineEdit* iedEdit = new QLineEdit(QString::fromUtf8(er.iedName.c_str()), &dlg);
+	QLineEdit* ldEdit = new QLineEdit(QString::fromUtf8(er.ldInst.c_str()), &dlg);
+	QLineEdit* prefixEdit = new QLineEdit(QString::fromUtf8(er.prefix.c_str()), &dlg);
+	QLineEdit* lnClassEdit = new QLineEdit(QString::fromUtf8(er.lnClass.c_str()), &dlg);
+	QLineEdit* lnInstEdit = new QLineEdit(QString::fromUtf8(er.lnInst.c_str()), &dlg);
+	QLineEdit* doEdit = new QLineEdit(QString::fromUtf8(er.doName.c_str()), &dlg);
+	QLineEdit* daEdit = new QLineEdit(QString::fromUtf8(er.daName.c_str()), &dlg);
+	QLineEdit* descEdit = new QLineEdit(QString::fromUtf8(er.desc.c_str()), &dlg);
+	QLineEdit* intAddrEdit = new QLineEdit(QString::fromUtf8(er.intAddr.c_str()), &dlg);
+	form->addRow(tr("iedName"), iedEdit);
+	form->addRow(tr("ldInst"), ldEdit);
+	form->addRow(tr("prefix"), prefixEdit);
+	form->addRow(tr("lnClass"), lnClassEdit);
+	form->addRow(tr("lnInst"), lnInstEdit);
+	form->addRow(tr("doName"), doEdit);
+	form->addRow(tr("daName (empty = DO level)"), daEdit);
+	form->addRow(tr("Description"), descEdit);
+	form->addRow(tr("intAddr"), intAddrEdit);
+	mid->addWidget(formPanel, 2);
+	vbox->addLayout(mid);
+	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dlg);
+	vbox->addWidget(box);
+
+	// 源树：LD -> LN -> DO -> DAI（点击叶子/DO 自动填表；节点 path 存 UserRole）
+	auto addLnNodes = [&](QTreeWidgetItem* ldItem, const SclLn& mln, int li, int ni) {
+		QTreeWidgetItem* lnItem = new QTreeWidgetItem(ldItem,
+			QStringList(QString::fromUtf8(mln.Name().c_str())));
+		for (size_t d = 0; d < mln.dos.size(); ++d)
+		{
+			QTreeWidgetItem* doItem = new QTreeWidgetItem(lnItem,
+				QStringList() << QString::fromUtf8(mln.dos[d].name.c_str())
+					<< QString::fromUtf8(mln.dos[d].cdc.c_str()));
+			doItem->setData(0, Qt::UserRole, QString("do:%1:%2:%3").arg(li).arg(ni).arg((int)d));
+			std::vector<SclDaiSpec> specs = daiSpecsFor(mln.dos[d]);
+			for (size_t k = 0; k < specs.size(); ++k)
+			{
+				if (specs[k].path == "d")
+					continue;
+				QTreeWidgetItem* daiItem = new QTreeWidgetItem(doItem,
+					QStringList() << QString::fromUtf8(specs[k].path.c_str())
+						<< QString::fromUtf8(specs[k].fc.c_str()));
+				daiItem->setData(0, Qt::UserRole,
+					QString("dai:%1:%2:%3:%4").arg(li).arg(ni).arg((int)d).arg((int)k));
+			}
+		}
+	};
+	for (size_t l = 0; l < m_model.ied.lds.size(); ++l)
+	{
+		const SclLDevice& mld = m_model.ied.lds[l];
+		QTreeWidgetItem* ldItem = new QTreeWidgetItem(srcTree, QStringList(QString::fromUtf8(mld.inst.c_str())));
+		addLnNodes(ldItem, mld.ln0, (int)l, -1);
+		for (size_t n = 0; n < mld.lns.size(); ++n)
+			addLnNodes(ldItem, mld.lns[n], (int)l, (int)n);
+	}
+	srcTree->expandToDepth(2);
+
+	// 点击 DO/DAI 自动填充表单（iedName 取当前 IED，跨装置引用可手改）
+	connect(srcTree, &QTreeWidget::itemClicked, this,
+		[this, iedEdit, ldEdit, prefixEdit, lnClassEdit, lnInstEdit, doEdit, daEdit]
+		(QTreeWidgetItem* it, int) {
+			QString tag = it->data(0, Qt::UserRole).toString();
+			QStringList pp = tag.split(':');
+			if (pp.size() < 4)
+				return;
+			int li = pp[1].toInt();
+			int ni = pp[2].toInt();
+			int di = pp[3].toInt();
+			SclLDevice* mld = ldAt(li);
+			SclLn* mln = lnAt(li, ni);
+			SclDo* mdo = doAt(li, ni, di);
+			if (mld == 0 || mln == 0 || mdo == 0)
+				return;
+			iedEdit->setText(QString::fromUtf8(m_model.ied.name.c_str()));
+			ldEdit->setText(QString::fromUtf8(mld->inst.c_str()));
+			prefixEdit->setText(QString::fromUtf8(mln->prefix.c_str()));
+			lnClassEdit->setText(QString::fromUtf8(mln->lnClass.c_str()));
+			lnInstEdit->setText(QString::fromUtf8(mln->inst.c_str()));
+			doEdit->setText(QString::fromUtf8(mdo->name.c_str()));
+			if (pp[0] == "dai" && pp.size() >= 5)
+			{
+				std::vector<SclDaiSpec> specs = daiSpecsFor(*mdo);
+				int k = pp[4].toInt();
+				if (k >= 0 && k < (int)specs.size())
+					daEdit->setText(QString::fromUtf8(specs[k].path.c_str()));
+			}
+			else
+			{
+				daEdit->clear();
+			}
+		});
+
+	bool accepted = false;
+	connect(box, &QDialogButtonBox::accepted, [&]() {
+		QString ied = iedEdit->text();
+		QString doN = doEdit->text();
+		QString lnClass = lnClassEdit->text();
+		QString daN = daEdit->text();
+		if (ied.isEmpty())
+		{
+			QMessageBox::warning(&dlg, tr("Validation failed"), tr("iedName cannot be empty"));
+			return;
+		}
+		if (lnClass.isEmpty() || !validIdent(lnClass.toUtf8().constData()))
+		{
+			QMessageBox::warning(&dlg, tr("Validation failed"), tr("lnClass must be valid"));
+			return;
+		}
+		if (doN.isEmpty() || !validIdent(doN.toUtf8().constData()))
+		{
+			QMessageBox::warning(&dlg, tr("Validation failed"), tr("doName must be valid"));
+			return;
+		}
+		if (!daN.isEmpty() && !validIdent(daN.toUtf8().constData()))
+		{
+			QMessageBox::warning(&dlg, tr("Validation failed"), tr("daName must be valid"));
+			return;
+		}
+		er.iedName = ied.toUtf8().constData();
+		er.ldInst = ldEdit->text().toUtf8().constData();
+		er.prefix = prefixEdit->text().toUtf8().constData();
+		er.lnClass = lnClass.toUtf8().constData();
+		er.lnInst = lnInstEdit->text().toUtf8().constData();
+		er.doName = doN.toUtf8().constData();
+		er.daName = daN.toUtf8().constData();
+		er.desc = descEdit->text().toUtf8().constData();
+		er.intAddr = intAddrEdit->text().toUtf8().constData();
+		accepted = true;
+		dlg.accept();
+	});
+	connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+	dlg.exec();
+	return accepted;
+}
+
+void MainWindow::addExternalRef(int li, int ni)
+{
+	SclLn* ln = lnAt(li, ni);
+	if (ln == 0)
+		return;
+	SclExtRef er;
+	if (!editExtRefDialog(er))
+		return;
+	ln->extRefs.push_back(er);
+	buildTree();
+	log(tr("Add external reference %1").arg(QString::fromUtf8(er.RefText().c_str())));
+}
+
+void MainWindow::editExternalRef(int li, int ni, int idx)
+{
+	SclLn* ln = lnAt(li, ni);
+	if (ln == 0 || idx < 0 || idx >= (int)ln->extRefs.size())
+		return;
+	SclExtRef er = ln->extRefs[idx];
+	if (!editExtRefDialog(er))
+		return;
+	ln->extRefs[idx] = er;
+	buildTree();
+	log(tr("Update external reference %1").arg(QString::fromUtf8(er.RefText().c_str())));
+}
+
+void MainWindow::deleteExternalRef(int li, int ni, int idx)
+{
+	SclLn* ln = lnAt(li, ni);
+	if (ln == 0 || idx < 0 || idx >= (int)ln->extRefs.size())
+		return;
+	QString text = QString::fromUtf8(ln->extRefs[idx].RefText().c_str());
+	if (QMessageBox::question(this, tr("Confirm"),
+		tr("Delete external reference %1?").arg(text)) != QMessageBox::Yes)
+		return;
+	ln->extRefs.erase(ln->extRefs.begin() + idx);
+	buildTree();
+	log(tr("Delete external reference %1").arg(text));
 }
 
 // goose

@@ -150,37 +150,38 @@ ieddesigner/
 ## 六、第三期工作计划
 
 > 以下任务按优先级排列，均为第二期之后的增量工作。1/2 在现有框架内可独立完成；3 需与 protocol 侧联动；4/5 为工具链增强。
+>
+> **进度（2026-10-13）**：任务 1、2、6 已完成并通过自检回归；任务 3 需 protocol 侧配合、任务 4 需引入 libxml2、任务 5 按需，暂未开工。
 
-### 任务 1：ExtRef 外部信号绑定 【核心，建议首先开工】
-- **内容**：LN0 下添加/编辑/删除 `<Inputs><ExtRef iedName ldInst prefix lnClass lnInst doName daName/></Inputs>`，实现跨 IED 信号引用（GOOSE 订阅方声明）。
-- **界面**：ExtRef 编辑对话框（目标 IED/接入点/LD/LN/DO 级联选择，复用数据集编辑器的勾选树），ExtRef 列表挂 LN0"外部引用"分组节点。
-- **模型/读写**：`SclLn.extRefs` + reader/writer 对应支持（Outputs 元素按需）。
-- **验收**：添加 ExtRef 后保存 CID，引用字段与手写 SCL 一致；回读零差异。
-- **依赖**：无（第二期的树/属性页框架直接复用）。
+### 任务 1：ExtRef 外部信号绑定 【核心，建议首先开工】✅ 已完成
+- **内容**：LN0/LN 下添加/编辑/删除 `<Inputs><ExtRef iedName ldInst prefix lnClass lnInst doName daName/>`（另支持 desc/intAddr），实现跨 IED 信号引用（GOOSE 订阅方声明）。
+- **界面**：ExtRef 编辑对话框（左侧当前模型浏览树点击 DO/DAI 自动填充，右侧 9 字段表单，iedName 可手填实现跨装置引用）；LN 下"外部引用"分组节点；LN0/LN 右键可直接添加；属性页支持逐字段编辑与校验。
+- **模型/读写**：`SclLn.extRefs` + reader/writer 对应支持（空列表不输出 Inputs 段）。
+- **验收**：✅ `--skeleton` 注入 DA 级 + DO 级两条 ExtRef，写盘→回读字段级零差异；`--roundtrip` 增加 extRefs 计数比对。
 
-### 任务 2：FCDA 成员微调与 DA 级 FCDA 【增强】
-- **内容**：数据集编辑器内 FCDA 条目的上移/下移/插删（当前只能按树序整体重建）；FCDA 支持到 DA 级（`daName` 勾选，DO 下的 DAI 勾选树）。
-- **验收**：调整顺序后保存的 CID 中 FCDA 顺序与编辑器一致；DA 级 FCDA 被 libiec61850 静态模型正确解析。
+### 任务 2：FCDA 成员微调与 DA 级 FCDA 【增强】✅ 已完成
+- **内容**：数据集编辑器改造——勾选树 DO 下挂 DA/DAI 子节点，勾 DO 生成 DO 级 FCDA、勾 DAI 生成 DA 级 FCDA（daName=点分路径，fc 取 DAI 精确 FC）；勾选/取消改为**增量**追加/移除（不再整体重建）；FCDA 列表支持**上移/下移/删除**。
+- **验收**：✅ 列表顺序即保存的 CID 中 FCDA 顺序；DA 级 FCDA 由 `--roundtrip` 回读验证保留。
 
-### 任务 3：模型加载器升级联动 【需 protocol 侧配合】
+### 任务 3：模型加载器升级联动 【需 protocol 侧配合】⏸ 未开工
 - **内容**：libprot61850 加载器当前只解析到 LN/DO 点表，需升级以识别数据集/控制块（用于导出前的语义校验），并支持 SG 引用（`sgRefs`）完整落地。
 - **说明**：加载器源码在 `../protocol/libprot61850`（protocol 侧仓库），工具侧已预留：`--skeleton` 自检可随时验证升级后的加载器对本工具输出的兼容性。
 - **验收**：带数据集/控制块的模型通过加载器校验且点表统计正确。
 
-### 任务 4：XSD 校验（IEC 61850-6 schema）【工具链增强】
+### 任务 4：XSD 校验（IEC 61850-6 schema）【工具链增强】⏸ 未开工
 - **内容**：保存/导出时用官方 SCL.xsd 套件校验生成文件，错误列表窗口展示。
 - **方案选型**：yx-ied-designer 依赖 JRE 8+（xsd-schema-validator）；本工具建议用 **libxml2（可静态链接，带 XML Schema 校验）** 避免引入 Java 运行时依赖。
 - **验收**：故意构造非法 SCL（缺必填属性/枚举越界）能被检出并列出行号。
 
-### 任务 5：sAddr/ix 信号地址分配 【按需】
+### 任务 5：sAddr/ix 信号地址分配 【按需】⏸ 未开工
 - **内容**：DAI 级短地址（sAddr）与索引（ix）的分配/回收/CSV 批量导入导出。
 - **说明**：yx 采用五段式"云行 ID"与其系统耦合；本工具建议按自家点表 `iInternalIndex` 体系设计等价物，**不建议照抄其格式**。
 - **验收**：分配的地址在 DataTypeTemplates 中按选项保留/清除（对齐 yx 的 keepSAddr 语义）。
 
-### 任务 6：工程易用性 【顺手项】
-- 修订历史一键生成（保存时自动追加 Hitem）
-- 多语言切换菜单（重启生效提示）
-- 主窗口布局记忆（QSettings 保存 dock 位置/大小）
+### 任务 6：工程易用性 【顺手项】✅ 已完成
+- ~~修订历史一键生成~~：保存/导出 CID/ICD 时自动追加（或更新当天）Hitem 条目
+- ~~多语言切换菜单~~：工具菜单 → Language（中文/English），写入偏好，重启生效
+- ~~主窗口布局记忆~~：关闭时保存 geometry/停靠窗格状态（QSettings），启动恢复
 
 ---
 

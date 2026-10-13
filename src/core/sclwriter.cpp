@@ -323,6 +323,33 @@ namespace SclWriter
 				text += open + nl;
 				if (!ln.comment.empty())
 					text += "            <!--" + SanitizeComment(ln.comment) + "-->" + nl;
+				// 外部信号引用（LN0/LN 通用；空则不输出 Inputs 段）
+				if (!ln.extRefs.empty())
+				{
+					text += "            <Inputs>" + nl;
+					for (size_t e = 0; e < ln.extRefs.size(); ++e)
+					{
+						const SclExtRef& er = ln.extRefs[e];
+						std::string attrs = " iedName=\"" + XmlEscape(er.iedName) + "\"";
+						if (!er.ldInst.empty())
+							attrs += " ldInst=\"" + XmlEscape(er.ldInst) + "\"";
+						if (!er.prefix.empty())
+							attrs += " prefix=\"" + XmlEscape(er.prefix) + "\"";
+						if (!er.lnClass.empty())
+							attrs += " lnClass=\"" + XmlEscape(er.lnClass) + "\"";
+						if (!er.lnInst.empty())
+							attrs += " lnInst=\"" + XmlEscape(er.lnInst) + "\"";
+						attrs += " doName=\"" + XmlEscape(er.doName) + "\"";
+						if (!er.daName.empty())
+							attrs += " daName=\"" + XmlEscape(er.daName) + "\"";
+						if (!er.desc.empty())
+							attrs += " desc=\"" + XmlEscape(er.desc) + "\"";
+						if (!er.intAddr.empty())
+							attrs += " intAddr=\"" + XmlEscape(er.intAddr) + "\"";
+						text += "              <ExtRef" + attrs + " />" + nl;
+					}
+					text += "            </Inputs>" + nl;
+				}
 				for (size_t d = 0; d < ln.dos.size(); ++d)
 				{
 					const SclDo& dobj = ln.dos[d];
