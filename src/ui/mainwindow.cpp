@@ -6,6 +6,7 @@
 #include "sclwriter.h"
 #include "csvwriter.h"
 #include "modelvalidate.h"
+#include "xsdvalidator.h"
 
 #include <QTreeWidget>
 #include <QHeaderView>
@@ -2435,6 +2436,79 @@ void MainWindow::onXmlPreview()
 	edit->setFont(mono);
 	vbox->addWidget(edit);
 	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Close, Qt::Horizontal, &dlg);
+	// 第三期任务 4：预览内直接触发 XSD 校验
+	QPushButton* xsdBtn = box->addButton(tr("XSD validation"), QDialogButtonBox::ActionRole);
+	connect(xsdBtn, &QPushButton::clicked, [&dlg, text]() {
+		std::vector<XsdValidator::XsdError> errors;
+		std::string errText;
+		std::string dir = XsdValidator::EnsureSchemasExtracted();
+		if (dir.empty())
+		{
+			QMessageBox::warning(&dlg, QObject::tr("XSD validation"), QObject::tr("Cannot extract schema suite"));
+			return;
+		}
+		if (!XsdValidator::Validate(text, dir, errors, errText))
+		{
+			QMessageBox::warning(&dlg, QObject::tr("XSD validation"), QString::fromUtf8(errText.c_str()));
+			return;
+		}
+		if (errors.empty())
+			QMessageBox::information(&dlg, QObject::tr("XSD validation"), QObject::tr("XSD validation passed (SCL 2003 schema)"));
+		else
+			QMessageBox::warning(&dlg, QObject::tr("XSD validation"),
+				QObject::tr("XSD validation found %1 issue(s), see the list on the main window log.").arg((int)errors.size()));
+	});
+	connect(box, SIGNAL(rejected()), &dlg, SLOT(reject()));
+	vbox->addWidget(box);
+	dlg.exec();
+}
+
+// 第三期任务 4：XSD 校验（schema 套件内置于 qrc，结果走日志 + 错误列表窗口）
+void MainWindow::validateXsdAndReport(const std::string& sclText)
+{
+	std::string dir = XsdValidator::EnsureSchemasExtracted();
+	if (dir.empty())
+	{
+		log(tr("XSD validation skipped: cannot extract schema suite"));
+		return;
+	}
+	std::vector<XsdValidator::XsdError> errors;
+	std::string errText;
+	if (!XsdValidator::Validate(sclText, dir, errors, errText))
+	{
+		log(tr("XSD validation failed: %1").arg(QString::fromUtf8(errText.c_str())));
+		return;
+	}
+	if (errors.empty())
+	{
+		log(tr("XSD validation passed (SCL 2003 schema)"));
+		return;
+	}
+	log(tr("XSD validation found %1 issue(s)").arg((int)errors.size()));
+	showXsdErrorList(errors);
+}
+
+void MainWindow::showXsdErrorList(const std::vector<XsdValidator::XsdError>& errors)
+{
+	QDialog dlg(this);
+	dlg.setWindowTitle(tr("XSD validation issues"));
+	dlg.resize(780, 440);
+	QVBoxLayout* vbox = new QVBoxLayout(&dlg);
+	vbox->addWidget(new QLabel(tr("The generated SCL violates the schema (line numbers refer to the generated file):"), &dlg));
+	QTableWidget* table = new QTableWidget((int)errors.size(), 2, &dlg);
+	table->setHorizontalHeaderLabels(QStringList() << tr("Line") << tr("Message"));
+	table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+	table->setSelectionBehavior(QAbstractItemView::SelectRows);
+	table->horizontalHeader()->setStretchLastSection(true);
+	table->setColumnWidth(0, 70);
+	for (size_t i = 0; i < errors.size(); ++i)
+	{
+		table->setItem((int)i, 0, new QTableWidgetItem(
+			errors[i].line > 0 ? QString::number(errors[i].line) : QString("-")));
+		table->setItem((int)i, 1, new QTableWidgetItem(QString::fromUtf8(errors[i].message.c_str())));
+	}
+	vbox->addWidget(table);
+	QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Close, Qt::Horizontal, &dlg);
 	connect(box, SIGNAL(rejected()), &dlg, SLOT(reject()));
 	vbox->addWidget(box);
 	dlg.exec();
@@ -2490,7 +2564,9 @@ void MainWindow::onSaveCid()
 		return;
 	}
 	log(tr("CID saved: %1").arg(m_currentFile));
-	validateAndLog(SclWriter::BuildSclText(m_model, true));
+	std::string text = SclWriter::BuildSclText(m_model, true);
+	validateAndLog(text);
+	validateXsdAndReport(text);
 }
 
 void MainWindow::onExportIcd()
@@ -2507,7 +2583,9 @@ void MainWindow::onExportIcd()
 		return;
 	}
 	log(tr("ICD exported: %1").arg(path));
-	validateAndLog(SclWriter::BuildSclText(m_model, false));
+	std::string text = SclWriter::BuildSclText(m_model, false);
+	validateAndLog(text);
+	validateXsdAndReport(text);
 }
 
 void MainWindow::onExportCid()
@@ -2524,7 +2602,9 @@ void MainWindow::onExportCid()
 		return;
 	}
 	log(tr("CID exported: %1").arg(path));
-	validateAndLog(SclWriter::BuildSclText(m_model, true));
+	std::string text = SclWriter::BuildSclText(m_model, true);
+	validateAndLog(text);
+	validateXsdAndReport(text);
 }
 
 void MainWindow::onExportCsv()

@@ -66,11 +66,12 @@ SclModel MakeNewModel()
 	m.ied.apName = SclDefaults::AP_NAME;
 	m.ied.serverTimeout = SclDefaults::SERVER_TIMEOUT;
 	m.ied.authentication = true;
-	m.ied.servicesNameLength = "64";
+	// Services 能力声明（元素集合与顺序须符合 SCL2003 v1.7 schema 的 tServices 定义）
+	m.ied.servicesNameLength = "";
 	const char* services[] = {
-		"ClientServices", "DynAssociation", "GetDirectory",
-		"GetDataObjectDefinition", "GetCBValues", "DataObjectDirectory",
-		"GetDataSetValue", "SetDataSetValue", "DataSetDirectory", "ReadWrite"
+		"DynAssociation", "GetDirectory", "GetDataObjectDefinition",
+		"DataObjectDirectory", "GetDataSetValue", "SetDataSetValue",
+		"DataSetDirectory", "ReadWrite", "GetCBValues"
 	};
 	for (size_t i = 0; i < sizeof(services) / sizeof(services[0]); ++i)
 		m.ied.services.push_back(services[i]);

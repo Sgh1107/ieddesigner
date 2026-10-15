@@ -22,6 +22,7 @@
 #include "onlineclient.h"
 #include "csvwriter.h"
 #include "modelvalidate.h"
+#include "xsdvalidator.h"
 
 static int RunSelfTest(const char* icdPath, const char* csvPath)
 {
@@ -478,7 +479,7 @@ static int RunSkeleton(const char* outPath)
 	SclLogControl lc;
 	lc.name = "lc1";
 	lc.dataSet = "dsRelay";
-	lc.logName = "Log";
+	lc.logName = "LD1";   // Ed1 schema keyref：logName 须为 IED 内某个 LD 实例名
 	lc.trgOps.present = true;
 	ld.ln0.logs.push_back(lc);
 
@@ -576,16 +577,20 @@ static int RunSkeleton(const char* outPath)
 		const SclLn& d0 = dst.ln0;
 		if (d0.dataSets.size() != s0.dataSets.size()) { printf("SKELETON diff: dataSet count\n"); diff++; }
 		else if (!s0.dataSets.empty() && (d0.dataSets[0].fcdas.size() != s0.dataSets[0].fcdas.size() ||
-			d0.dataSets[0].fcdas[0].RefText() != s0.dataSets[0].fcdas[0].RefText()))
-		{ printf("SKELETON diff: FCDA\n"); diff++; }
+			d0.dataSets[0].fcdas[0].ldInst != s0.dataSets[0].fcdas[0].ldInst ||
+			d0.dataSets[0].fcdas[0].lnClass != s0.dataSets[0].fcdas[0].lnClass ||
+			d0.dataSets[0].fcdas[0].doName != s0.dataSets[0].fcdas[0].doName ||
+			d0.dataSets[0].fcdas[0].daName != s0.dataSets[0].fcdas[0].daName ||
+			d0.dataSets[0].fcdas[0].fc != s0.dataSets[0].fcdas[0].fc))
+		{ printf("SKELETON diff: FCDA\n"); diff++; }   // Ed1 FCDA 无 iedName 属性，回读 iedName 为空不比对
 		if (d0.extRefs.size() != s0.extRefs.size())
 		{ printf("SKELETON diff: extRef count\n"); diff++; }
 		else
 		{
 			for (size_t e = 0; e < s0.extRefs.size(); ++e)
 			{
+				// Ed1 schema 的 ExtRef 无 desc 属性（仅存于工程文件本地），回读 desc 为空不比对
 				if (d0.extRefs[e].RefText() != s0.extRefs[e].RefText() ||
-					d0.extRefs[e].desc != s0.extRefs[e].desc ||
 					d0.extRefs[e].intAddr != s0.extRefs[e].intAddr)
 				{ printf("SKELETON extRef diff: %s\n", s0.extRefs[e].RefText().c_str()); diff++; }
 			}
@@ -606,8 +611,8 @@ static int RunSkeleton(const char* outPath)
 			(!s0.logs.empty() && (d0.logs[0].logName != s0.logs[0].logName || d0.logs[0].trgOps.present != s0.logs[0].trgOps.present)))
 		{ printf("SKELETON diff: logControl\n"); diff++; }
 		if (d0.settings.size() != s0.settings.size() ||
-			(!s0.settings.empty() && (d0.settings[0].numOfSG != s0.settings[0].numOfSG)))
-		{ printf("SKELETON diff: settingControl\n"); diff++; }
+			(!s0.settings.empty() && d0.settings[0].numOfSG != s0.settings[0].numOfSG))
+		{ printf("SKELETON diff: settingControl\n"); diff++; }   // Ed1 仅 numOfSGs 落盘，name/datSet 为工程文件本地字段
 	}
 	// 通信段 GSE 地址回读比对
 	if (reloaded.subnets.size() != model.subnets.size() ||
@@ -711,8 +716,57 @@ static void ApplyTheme(QApplication& app)
 	);
 }
 
+// --xsd：对指定 SCL 文件执行 XSD 校验（第三期任务 4 CLI 自检）
+// 返回码：0=通过，1=流程错误，2=存在违规
+static int RunXsd(const char* filePath)
+{
+	int argc = 1;
+	char appname[] = "ieddesigner-xsd";
+	char* argv[] = { appname, 0 };
+	QCoreApplication app(argc, argv);
+
+	FILE* f = fopen(filePath, "rb");
+	if (!f)
+	{
+		printf("XSD FAIL open file: %s\n", filePath);
+		return 1;
+	}
+	std::string text;
+	char buf[65536];
+	size_t n;
+	while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
+		text.append(buf, n);
+	fclose(f);
+
+	std::string dir = XsdValidator::EnsureSchemasExtracted();
+	if (dir.empty())
+	{
+		printf("XSD FAIL extract schemas\n");
+		return 1;
+	}
+
+	std::vector<XsdValidator::XsdError> errors;
+	std::string errText;
+	if (!XsdValidator::Validate(text, dir, errors, errText))
+	{
+		printf("XSD FAIL: %s\n", errText.c_str());
+		return 1;
+	}
+	if (errors.empty())
+	{
+		printf("XSD PASS: no schema violations\n");
+		return 0;
+	}
+	printf("XSD VIOLATIONS: %d\n", (int)errors.size());
+	for (size_t i = 0; i < errors.size(); ++i)
+		printf("  line %d: %s\n", errors[i].line, errors[i].message.c_str());
+	return 2;
+}
+
 int main(int argc, char** argv)
 {
+	if (argc >= 3 && strcmp(argv[1], "--xsd") == 0)
+		return RunXsd(argv[2]);
 	if (argc >= 4 && strcmp(argv[1], "--selftest") == 0)
 		return RunSelfTest(argv[2], argv[3]);
 	if (argc >= 3 && strcmp(argv[1], "--skeleton") == 0)

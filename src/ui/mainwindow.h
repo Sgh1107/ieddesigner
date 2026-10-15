@@ -16,6 +16,8 @@ class QAction;
 class QMenu;
 class OnlineBrowseThread;
 
+namespace XsdValidator { struct XsdError; }
+
 class MainWindow : public QMainWindow
 {
 	Q_OBJECT
@@ -119,6 +121,9 @@ private:
 	// 第三期任务 6：保存/导出时自动追加当天修订历史条目
 	void ensureAutoHistory();
 	void setUiLanguage(const QString& lang);
+	// 第三期任务 4：XSD 校验
+	void validateXsdAndReport(const std::string& sclText);
+	void showXsdErrorList(const std::vector<XsdValidator::XsdError>& errors);
 	void addReport(int li, int ni);
 	void addGseControl(int li, int ni);
 	void addSmvControl(int li, int ni);

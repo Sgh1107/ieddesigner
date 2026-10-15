@@ -1,0 +1,13 @@
+<RCC>
+  <qresource prefix="/xsd">
+    <file alias="SCL2003/SCL.xsd">SCL2003/SCL.xsd</file>
+    <file alias="SCL2003/SCL_BaseSimpleTypes.xsd">SCL2003/SCL_BaseSimpleTypes.xsd</file>
+    <file alias="SCL2003/SCL_BaseTypes.xsd">SCL2003/SCL_BaseTypes.xsd</file>
+    <file alias="SCL2003/SCL_Communication.xsd">SCL2003/SCL_Communication.xsd</file>
+    <file alias="SCL2003/SCL_DataTypeTemplates.xsd">SCL2003/SCL_DataTypeTemplates.xsd</file>
+    <file alias="SCL2003/SCL_Enums.xsd">SCL2003/SCL_Enums.xsd</file>
+    <file alias="SCL2003/SCL_IED.xsd">SCL2003/SCL_IED.xsd</file>
+    <file alias="SCL2003/SCL_Substation.xsd">SCL2003/SCL_Substation.xsd</file>
+    <file alias="SCL2003/IECCopyright.xsd">SCL2003/IECCopyright.xsd</file>
+  </qresource>
+</RCC>

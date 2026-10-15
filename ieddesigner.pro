@@ -5,7 +5,7 @@ TARGET = ieddesigner
 
 QT	+= core gui widgets xml concurrent svg
 
-RESOURCES += src/resources/icons.qrc
+RESOURCES += src/resources/icons.qrc schemas/schemas.qrc
 
 # 界面翻译：源码为英文，中文经 translate/ieddesigner_zh_CN.ts -> .qm 加载
 # .qm 同时打包进 qrc 资源（部署免拷贝），运行时可被 exe 目录 translate/ 下的外部 .qm 覆盖
@@ -25,14 +25,22 @@ win32-msvc:QMAKE_LFLAGS_DEBUG += /INCREMENTAL:NO
 
 INCLUDEPATH	+= src src/core src/ui validate $$PWD/../protocol/libprot61850 $$PWD/../include/libiec61850
 
-# libiec61850 静态库：MinGW 与本机重建的 MSVC 库（Debug/Release 分目录）分别配置
+# libxml2 静态库（XSD 校验，第三期任务 4）：MinGW 与 MSVC 分别构建，含头文件
+INCLUDEPATH	+= $$PWD/../libxml2-2.12.9-install-mingw/include/libxml2
+INCLUDEPATH	+= $$PWD/../libxml2-2.12.9-install-msvc/include/libxml2
 win32-g++ {
 	LIBPATH += $$PWD/../libiec61850-mingw/src
 	LIBS += -liec61850 -lws2_32
+	LIBPATH += $$PWD/../libxml2-2.12.9-install-mingw/lib
+	LIBS += -lxml2
+	DEFINES += LIBXML_STATIC
 } else:win32 {
 	CONFIG(debug, debug|release): LIBPATH += $$PWD/../libiec61850-msvc/Debug
 	else: LIBPATH += $$PWD/../libiec61850-msvc/Release
 	LIBS += iec61850.lib hal.lib ws2_32.lib
+	LIBPATH += $$PWD/../libxml2-2.12.9-install-msvc/lib
+	LIBS += libxml2s.lib
+	DEFINES += LIBXML_STATIC
 }
 
 HEADERS	+= src/core/sclmodel.h \
@@ -44,6 +52,7 @@ HEADERS	+= src/core/sclmodel.h \
 	src/core/onlineclient.h \
 	src/core/csvwriter.h \
 	src/core/modelvalidate.h \
+	src/core/xsdvalidator.h \
 	src/ui/mainwindow.h \
 	../protocol/libprot61850/iec61850_model_loader.h \
 	../protocol/libprot61850/iec61850_model_types.h
@@ -58,6 +67,7 @@ SOURCES	+= src/main.cpp \
 	src/core/onlineclient.cpp \
 	src/core/csvwriter.cpp \
 	src/core/modelvalidate.cpp \
+	src/core/xsdvalidator.cpp \
 	src/ui/mainwindow.cpp \
 	../protocol/libprot61850/iec61850_model_loader.cpp
 

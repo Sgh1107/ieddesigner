@@ -409,7 +409,7 @@ namespace SclReader
 			SclSettingControl scb;
 			scb.name = scbs[i].attribute("name").toUtf8().constData();
 			scb.dataSet = scbs[i].attribute("datSet").toUtf8().constData();
-			scb.numOfSG = scbs[i].attribute("numOfSG").toUtf8().constData();
+			scb.numOfSG = scbs[i].attribute("numOfSGs").toUtf8().constData();
 			ln.settings.push_back(scb);
 		}
 	}

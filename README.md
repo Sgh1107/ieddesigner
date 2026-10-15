@@ -151,7 +151,7 @@ ieddesigner/
 
 > 以下任务按优先级排列，均为第二期之后的增量工作。1/2 在现有框架内可独立完成；3 需与 protocol 侧联动；4/5 为工具链增强。
 >
-> **进度（2026-10-13）**：任务 1、2、6 已完成并通过自检回归；任务 3 需 protocol 侧配合、任务 4 需引入 libxml2、任务 5 按需，暂未开工。
+> **进度（2026-10-15）**：任务 1、2、4、6 已完成并通过自检回归；任务 3 需 protocol 侧配合、任务 5 按需，暂未开工。
 
 ### 任务 1：ExtRef 外部信号绑定 【核心，建议首先开工】✅ 已完成
 - **内容**：LN0/LN 下添加/编辑/删除 `<Inputs><ExtRef iedName ldInst prefix lnClass lnInst doName daName/>`（另支持 desc/intAddr），实现跨 IED 信号引用（GOOSE 订阅方声明）。
@@ -168,10 +168,11 @@ ieddesigner/
 - **说明**：加载器源码在 `../protocol/libprot61850`（protocol 侧仓库），工具侧已预留：`--skeleton` 自检可随时验证升级后的加载器对本工具输出的兼容性。
 - **验收**：带数据集/控制块的模型通过加载器校验且点表统计正确。
 
-### 任务 4：XSD 校验（IEC 61850-6 schema）【工具链增强】⏸ 未开工
-- **内容**：保存/导出时用官方 SCL.xsd 套件校验生成文件，错误列表窗口展示。
-- **方案选型**：yx-ied-designer 依赖 JRE 8+（xsd-schema-validator）；本工具建议用 **libxml2（可静态链接，带 XML Schema 校验）** 避免引入 Java 运行时依赖。
-- **验收**：故意构造非法 SCL（缺必填属性/枚举越界）能被检出并列出行号。
+### 任务 4：XSD 校验（IEC 61850-6 schema）【工具链增强】✅ 已完成
+- **内容**：保存/导出 CID/ICD 时用官方 SCL schema 校验生成文件，错误列表窗口展示（行号+信息）；XML 源码预览内可直接触发；CLI 提供 `--xsd <file>` 自检（退出码 0=通过/1=流程错误/2=有违规）。
+- **实现**：**libxml2 2.12.9 静态链接**（`../3rd` 侧源码，MinGW/MSVC 双套件已构建），进程内 `xmlSchemaValidateDoc`，schema 套件（SCL2003 v1.7，来自 com-pas/compas-scl-xsd 的官方 IEC 61850-6 XSD）打包进 qrc，运行时释放到 exe 目录 `schemas/SCL2003/`。
+- **附带产出**：XSD 校验反向暴露并修复了 writer 与 Ed1 schema 的多处差异——MinTime/MaxTime 补 unit/multiplier、Services 修正元素集合与顺序（去 ClientServices/nameLength）、FCDA 去除 iedName 与空 daName、ReportControl 的 confRev 改为必填属性、TrgOps/OptFields 按 Ed1 属性集裁剪（去 gi/bufOvfl/config）、SMV 补必备 SmvOpts 并去除 smpMod、SettingControl 改用 numOfSGs、LN0/LN 子元素顺序对齐 schema（DataSet→ReportControl→LogControl→DOI→Inputs→GSE/SMV/Setting）。
+- **已知限制**：TrgOps 的 gi、OptFields 的 bufOvfl/config、SMV 的 smpMod 为 Ed2 特性，Ed1 schema 不允许，暂不输出；非 LN0 节点上的 GSE/SV/定值控制块不符合 Ed1 schema（校验会提示）。
 
 ### 任务 5：sAddr/ix 信号地址分配 【按需】⏸ 未开工
 - **内容**：DAI 级短地址（sAddr）与索引（ix）的分配/回收/CSV 批量导入导出。
