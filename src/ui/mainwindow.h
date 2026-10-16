@@ -15,6 +15,7 @@ class QPlainTextEdit;
 class QAction;
 class QMenu;
 class OnlineBrowseThread;
+class TreeDetailDelegate;
 
 namespace XsdValidator { struct XsdError; }
 
@@ -41,6 +42,7 @@ private slots:
 	void onOnlineFinished();
 	void onTreeSelectionChanged();
 	void onTreeContextMenu(const QPoint& pos);
+	void onTreeItemChanged(QTreeWidgetItem* item, int column);
 	void onXmlPreview();
 
 public:
@@ -55,6 +57,7 @@ private:
 	QTreeWidgetItem* addNode(QTreeWidgetItem* parent, const QString& text,
 		const QString& detail, const QString& path);
 	void applyNodeStyle(QTreeWidgetItem* item, const QString& path);
+	void applyDetailEdit(const QString& path, const QString& text);
 	void populateProps(const QString& path);
 	void applyProp(const QString& path, int row, const QString& value);
 	void log(const QString& text);
@@ -114,15 +117,15 @@ private:
 	void addDataSet(int li, int ni);
 	bool editDataSetDialog(SclDataSet& ds, int li);
 	void deleteDataSet(int li, int ni, int di);
-	// ExtRef 外部信号引用（GOOSE 订阅声明，第三期任务 1）
+	// ExtRef 外部信号引用（GOOSE 订阅声明）
 	void addExternalRef(int li, int ni);
 	void editExternalRef(int li, int ni, int idx);
 	void deleteExternalRef(int li, int ni, int idx);
 	bool editExtRefDialog(SclExtRef& er);
-	// 第三期任务 6：保存/导出时自动追加当天修订历史条目
+	// 保存/导出时自动追加当天修订历史条目
 	void ensureAutoHistory();
 	void setUiLanguage(const QString& lang);
-	// 第三期任务 4：XSD 校验
+	// XSD 校验
 	void validateXsdAndReport(const std::string& sclText);
 	void showXsdErrorList(const std::vector<XsdValidator::XsdError>& errors);
 	void addReport(int li, int ni);
@@ -153,6 +156,7 @@ private:
 	QAction* m_openAct;
 	QMenu* m_recentMenu;
 	OnlineBrowseThread* m_browseThread;
+	TreeDetailDelegate* m_detailDelegate;
 	SclModel m_model;
 	QString m_currentFile;
 	QString m_currentPath;

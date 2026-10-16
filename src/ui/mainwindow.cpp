@@ -40,6 +40,7 @@ static QString boolText(bool v)
 #include <QTime>
 #include <QDate>
 #include <QDateTime>
+#include <QTimer>
 #include <QSettings>
 #include <QClipboard>
 #include <QApplication>
@@ -57,7 +58,62 @@ static QString boolText(bool v)
 #include <QSet>
 #include <QStringList>
 #include <QTreeWidget>
+#include <QStyledItemDelegate>
+#include <QLineEdit>
 #include <cctype>
+
+// 详细列就地编辑委托：仅对"详细列 = 单一值"的节点类型开放编辑
+// （通信参数值 / IED 名称 / DAI 值）；复合摘要节点保持只读。
+// DAI 的详细文本是 "bType/fc = 值" 复合格式，编辑器只放值，提交也只取值。
+class TreeDetailDelegate : public QStyledItemDelegate
+{
+public:
+	explicit TreeDetailDelegate(QObject* parent = 0)
+		: QStyledItemDelegate(parent) {}
+
+	static bool editableKind(const QString& kind)
+	{
+		return kind == "capp" || kind == "ied" || kind == "dai";
+	}
+
+	static bool canEdit(const QModelIndex& index)
+	{
+		if (index.column() != 1)
+			return false;   // 仅详细列
+		const QString path = index.sibling(index.row(), 0).data(Qt::UserRole).toString();
+		return editableKind(path.split(':').value(0));
+	}
+
+	// 拦截编辑入口：标题列与复合摘要节点返回空编辑器（视图自动放弃编辑）
+	QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem& option,
+		const QModelIndex& index) const override
+	{
+		if (!canEdit(index))
+			return nullptr;
+		return QStyledItemDelegate::createEditor(parent, option, index);
+	}
+
+	void setEditorData(QWidget* editor, const QModelIndex& index) const override
+	{
+		QStyledItemDelegate::setEditorData(editor, index);
+		const QString path = index.sibling(index.row(), 0).data(Qt::UserRole).toString();
+		if (path.split(':').value(0) != "dai")
+			return;
+		// DAI：编辑器只放当前值（详细列文本为 "bType/fc = 值" 复合格式）
+		QString text = index.data(Qt::EditRole).toString();
+		if (text.contains(" = "))
+		{
+			if (QLineEdit* le = qobject_cast<QLineEdit*>(editor))
+				le->setText(text.section(" = ", 1));
+		}
+	}
+
+	void setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const override
+	{
+		QStyledItemDelegate::setModelData(editor, model, index);
+		// 提交后把新文本路由给主窗口（经 itemChanged 信号 → applyDetailEdit）
+	}
+};
 
 namespace
 {
@@ -198,7 +254,7 @@ MainWindow::MainWindow(QWidget* parent)
 	, m_recentMenu(0)
 	, m_browseThread(0)
 {
-	// 界面字体：全局加大一号（默认 9pt → 10pt），提升可读性
+	// 界面字体 10
 	{
 		QFont appFont = QApplication::font();
 		appFont.setPointSize(appFont.pointSize() + 1);
@@ -222,6 +278,9 @@ MainWindow::MainWindow(QWidget* parent)
 	m_propScroll->setFrameShape(QFrame::NoFrame);
 	QWidget* propPanel = new QWidget(m_propScroll);
 	propPanel->setObjectName("propPanel");
+	// 关键：普通 QWidget 需开启此属性，QSS 的 background 声明才生效
+	// （否则标签的 transparent 与面板空白区透出系统灰底，出现色块突兀感）
+	propPanel->setAttribute(Qt::WA_StyledBackground, true);
 	m_propGrid = new QGridLayout(propPanel);
 	m_propGrid->setContentsMargins(16, 16, 16, 16);
 	m_propGrid->setHorizontalSpacing(10);
@@ -245,12 +304,15 @@ MainWindow::MainWindow(QWidget* parent)
 
 	connect(m_tree, SIGNAL(itemSelectionChanged()), this, SLOT(onTreeSelectionChanged()));
 	connect(m_tree, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onTreeContextMenu(const QPoint&)));
+	// 详细列就地编辑（双击）：委托控制可编辑类型，itemChanged 统一路由到属性行校验
+	m_detailDelegate = new TreeDetailDelegate(m_tree);
+	m_tree->setItemDelegate(m_detailDelegate);
+	m_tree->setEditTriggers(QAbstractItemView::DoubleClicked);
+	connect(m_tree, SIGNAL(itemChanged(QTreeWidgetItem*, int)), this, SLOT(onTreeItemChanged(QTreeWidgetItem*, int)));
 
-	// 属性面板样式：精密仪器风（令牌对齐 docs/ui-prototype-v1.html，
-	// 白面板 + 发丝线输入框 + 信号蓝焦点环；objectName 沿用勿改，QSS 依赖它们）
 	setStyleSheet(QString(
 		"#propScroll, #propPanel { background: #FFFFFF; }"
-		"#propPanel QLabel { color: #3D4A5C; background: transparent; font-size: 10pt; }"
+		"#propPanel QLabel { color: #3D4A5C; background: transparent; font-size: 11pt; }"
 		"#propPanel QLineEdit { border: 1px solid #A9B7C8; border-radius: 4px;"
 		"  padding: 3px 8px; min-height: 22px; background: #FFFFFF; color: #000000;"
 		"  font-weight: 600; selection-background-color: #1B54BE; selection-color: #FFFFFF; }"
@@ -262,7 +324,7 @@ MainWindow::MainWindow(QWidget* parent)
 		"#propPanel QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: top right;"
 		"  width: 24px; border: none; background: transparent; }"
 		"#propPanel QComboBox::down-arrow { image: url(:/icons/chevron-down.svg); width: 12px; height: 12px; }"
-		"QPlainTextEdit { background: #FFFFFF; color: #24303F; font-size: 10pt; }"
+		"QPlainTextEdit { background: #FFFFFF; color: #24303F; font-size: 11pt; }"
 		"#propScroll QScrollBar:vertical { background: transparent; width: 8px; margin: 0; }"
 		"#propScroll QScrollBar::handle:vertical { background: #B0BDCD; border-radius: 4px; min-height: 30px; }"
 		"#propScroll QScrollBar::handle:vertical:hover { background: #96A5B8; }"
@@ -272,7 +334,7 @@ MainWindow::MainWindow(QWidget* parent)
 
 	m_model = MakeNewModel();
 	buildTree();
-	// 第三期任务 6：恢复上次窗口布局（几何 + 停靠窗格状态）
+	// 窗口布局（几何 + 停靠窗格状态）
 	{
 		QSettings settings("newfert", "ieddesigner");
 		QByteArray geo = settings.value("winGeometry").toByteArray();
@@ -297,7 +359,7 @@ MainWindow::~MainWindow()
 		m_logFile.close();
 }
 
-// 第三期任务 6：关闭时保存窗口布局（几何 + 停靠窗格状态）
+// 关闭时保存窗口布局（几何 + 停靠窗格状态）
 void MainWindow::closeEvent(QCloseEvent* event)
 {
 	QSettings settings("newfert", "ieddesigner");
@@ -383,7 +445,7 @@ void MainWindow::setupMenus()
 	connect(m_jsonAct, SIGNAL(triggered()), this, SLOT(onImportJson()));
 	m_onlineAct = toolMenu->addAction(tr("Read IED online"));
 	connect(m_onlineAct, SIGNAL(triggered()), this, SLOT(onOnlineRead()));
-	// 第三期任务 6：界面语言切换（重启生效）
+	// 界面语言切换（重启生效）
 	toolMenu->addSeparator();
 	QMenu* langMenu = toolMenu->addMenu(tr("Language"));
 	QAction* zhAct = langMenu->addAction(tr("中文 (Chinese)"));
@@ -590,6 +652,8 @@ QTreeWidgetItem* MainWindow::restoreTreeState(QTreeWidgetItem* item, const QSet<
 
 void MainWindow::buildTree()
 {
+	// 重建期间抑制 itemChanged 路由（批量 setText 会触发编辑回调）
+	m_loadingProps = true;
 	// 保留展开状态与当前选中节点（避免属性修改后整树折叠）
 	QSet<QString> expanded;
 	collectExpandedPaths(m_tree->invisibleRootItem(), expanded);
@@ -865,6 +929,36 @@ void MainWindow::buildTree()
 		else
 			m_currentPath.clear();
 	}
+	m_loadingProps = false;
+	if (!m_currentPath.isEmpty())
+		populateProps(m_currentPath);   // 复位保护后重灌选中节点的属性面板
+}
+
+// 详细列就地编辑提交：把新文本路由到对应属性页行，复用 applyProp 的校验与写回
+void MainWindow::applyDetailEdit(const QString& path, const QString& text)
+{
+	QStringList parts = path.split(':');
+	const QString kind = parts.value(0);
+	if (kind == "capp" && parts.size() == 5)
+		applyProp(path, 1, text);       // 通信参数值
+	else if (kind == "ied")
+		applyProp(path, 0, text);       // IED 名称
+	else if (kind == "dai" && parts.size() == 4)
+		applyProp(path, 3, text);       // DAI 值（属性行 4）
+}
+
+// 树编辑提交（委托放行后的统一入口）：路由编辑并重建树恢复规范文本
+void MainWindow::onTreeItemChanged(QTreeWidgetItem* item, int column)
+{
+	if (m_loadingProps || column != 1 || item == 0)
+		return;
+	QString path = item->data(0, Qt::UserRole).toString();
+	if (path.isEmpty())
+		return;
+	applyDetailEdit(path, item->text(1));
+	// 延迟重建：恢复树上的规范显示文本（校验被拒时自动回退原值）；
+	// 不能在 itemChanged 信号栈内直接清空树（正在发信号的 item 会被销毁）
+	QTimer::singleShot(0, this, [this]() { buildTree(); });
 }
 
 SclLDevice* MainWindow::ldAt(int li)
