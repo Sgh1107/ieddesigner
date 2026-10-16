@@ -54,6 +54,7 @@ private:
 		const QString& selectPath) const;
 	QTreeWidgetItem* addNode(QTreeWidgetItem* parent, const QString& text,
 		const QString& detail, const QString& path);
+	void applyNodeStyle(QTreeWidgetItem* item, const QString& path);
 	void populateProps(const QString& path);
 	void applyProp(const QString& path, int row, const QString& value);
 	void log(const QString& text);

@@ -198,6 +198,12 @@ MainWindow::MainWindow(QWidget* parent)
 	, m_recentMenu(0)
 	, m_browseThread(0)
 {
+	// 界面字体：全局加大一号（默认 9pt → 10pt），提升可读性
+	{
+		QFont appFont = QApplication::font();
+		appFont.setPointSize(appFont.pointSize() + 1);
+		QApplication::setFont(appFont);
+	}
 	setWindowTitle(tr("IED²esigner"));
 	setWindowIcon(QIcon(":/icons/app.png"));
 	resize(1100, 700);
@@ -244,18 +250,19 @@ MainWindow::MainWindow(QWidget* parent)
 	// 白面板 + 发丝线输入框 + 信号蓝焦点环；objectName 沿用勿改，QSS 依赖它们）
 	setStyleSheet(QString(
 		"#propScroll, #propPanel { background: #FFFFFF; }"
-		"#propPanel QLabel { color: #49596D; background: transparent; font-size: 9pt; }"
-		"#propPanel QLineEdit { border: 1px solid #B0BDCD; border-radius: 4px;"
-		"  padding: 3px 8px; min-height: 20px; background: #FFFFFF; color: #131C29;"
-		"  selection-background-color: #1B54BE; selection-color: #FFFFFF; }"
+		"#propPanel QLabel { color: #3D4A5C; background: transparent; font-size: 10pt; }"
+		"#propPanel QLineEdit { border: 1px solid #A9B7C8; border-radius: 4px;"
+		"  padding: 3px 8px; min-height: 22px; background: #FFFFFF; color: #000000;"
+		"  font-weight: 600; selection-background-color: #1B54BE; selection-color: #FFFFFF; }"
 		"#propPanel QLineEdit:focus { border: 1px solid #1B54BE; }"
-		"#propPanel QLineEdit:read-only { background: #EEF1F6; color: #49596D; border-color: #C8D2DE; }"
-		"#propPanel QComboBox { border: 1px solid #B0BDCD; border-radius: 4px;"
-		"  padding: 3px 26px 3px 8px; min-height: 20px; background: #FFFFFF; color: #131C29; }"
+		"#propPanel QLineEdit:read-only { background: #EEF1F6; color: #49596D; border-color: #C8D2DE; font-weight: 400; }"
+		"#propPanel QComboBox { border: 1px solid #A9B7C8; border-radius: 4px;"
+		"  padding: 3px 26px 3px 8px; min-height: 22px; background: #FFFFFF; color: #000000; font-weight: 600; }"
 		"#propPanel QComboBox:focus { border: 1px solid #1B54BE; }"
 		"#propPanel QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: top right;"
 		"  width: 24px; border: none; background: transparent; }"
 		"#propPanel QComboBox::down-arrow { image: url(:/icons/chevron-down.svg); width: 12px; height: 12px; }"
+		"QPlainTextEdit { background: #FFFFFF; color: #24303F; font-size: 10pt; }"
 		"#propScroll QScrollBar:vertical { background: transparent; width: 8px; margin: 0; }"
 		"#propScroll QScrollBar::handle:vertical { background: #B0BDCD; border-radius: 4px; min-height: 30px; }"
 		"#propScroll QScrollBar::handle:vertical:hover { background: #96A5B8; }"
@@ -501,7 +508,54 @@ QTreeWidgetItem* MainWindow::addNode(QTreeWidgetItem* parent, const QString& tex
 	}
 	item->setData(0, Qt::UserRole, path);
 	item->setIcon(0, iconForPath(path));
+	applyNodeStyle(item, path);
 	return item;
+}
+
+// 节点类别配色：浅色主题下的低饱和工程色，按模型层级快速区分；关键层级加粗
+void MainWindow::applyNodeStyle(QTreeWidgetItem* item, const QString& path)
+{
+	QString kind = path.split(':').first();
+	QColor main;
+	const QColor detail(0x6A, 0x76, 0x86);
+	bool bold = false;
+
+	if (kind == "ied") { main = QColor(0x0F, 0x3D, 0x64); bold = true; }
+	else if (kind == "ap" || kind == "server") { main = QColor(0x1B, 0x5E, 0x8A); bold = true; }
+	else if (kind == "ld") { main = QColor(0x0E, 0x6B, 0x5C); bold = true; }
+	else if (kind == "ln0" || kind == "ln") { main = QColor(0x24, 0x56, 0xA6); bold = true; }
+	else if (kind == "do") main = QColor(0x0B, 0x6E, 0x4F);
+	else if (kind == "dai" || kind == "fcda" || kind == "capp") main = QColor(0x5B, 0x6B, 0x7C);
+	else if (kind == "ds-sec") { main = QColor(0x7A, 0x5D, 0x00); bold = true; }
+	else if (kind == "ds") main = QColor(0x7A, 0x5D, 0x00);
+	else if (kind == "rpt-sec") { main = QColor(0xB2, 0x50, 0x00); bold = true; }
+	else if (kind == "rpt") main = QColor(0xB2, 0x50, 0x00);
+	else if (kind == "rptsec") main = QColor(0x9A, 0x6A, 0x3C);
+	else if (kind == "gse-sec") { main = QColor(0x7D, 0x3C, 0x98); bold = true; }
+	else if (kind == "gcb") main = QColor(0x7D, 0x3C, 0x98);
+	else if (kind == "smv-sec") { main = QColor(0x0E, 0x74, 0x90); bold = true; }
+	else if (kind == "smcb") main = QColor(0x0E, 0x74, 0x90);
+	else if (kind == "log-sec") { main = QColor(0x54, 0x5D, 0x6B); bold = true; }
+	else if (kind == "logcb" || kind == "logsec") main = QColor(0x54, 0x5D, 0x6B);
+	else if (kind == "set-sec") { main = QColor(0x8B, 0x69, 0x14); bold = true; }
+	else if (kind == "setcb") main = QColor(0x8B, 0x69, 0x14);
+	else if (kind == "ext-sec") { main = QColor(0x9C, 0x3B, 0x3B); bold = true; }
+	else if (kind == "extref") main = QColor(0x9C, 0x3B, 0x3B);
+	else if (kind == "comm" || kind == "subnet") { main = QColor(0x5B, 0x3E, 0x96); bold = true; }
+	else if (kind == "cap" || kind == "addr") main = QColor(0x5B, 0x3E, 0x96);
+	else if (kind == "hitem") main = QColor(0x6A, 0x76, 0x86);
+
+	if (!main.isValid())
+		return;
+	item->setForeground(0, QBrush(main));
+	item->setForeground(1, QBrush(detail));
+	if (bold)
+	{
+		QFont f = item->font(0);
+		f.setBold(true);
+		item->setFont(0, f);
+		item->setFont(1, f);
+	}
 }
 
 void MainWindow::collectExpandedPaths(QTreeWidgetItem* item, QSet<QString>& out)
