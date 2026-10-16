@@ -6,6 +6,12 @@
 #include "sclwriter.h"
 #include "csvwriter.h"
 #include "modelvalidate.h"
+
+// 布尔值转 "true"/"false" 展示文本（树节点摘要与只读属性行用）
+static QString boolText(bool v)
+{
+	return v ? QStringLiteral("true") : QStringLiteral("false");
+}
 #include "xsdvalidator.h"
 
 #include <QTreeWidget>
@@ -474,9 +480,9 @@ QIcon MainWindow::iconForPath(const QString& path) const
 	if (kind == "comm" || kind == "subnet") return commIc;
 	if (kind == "gse" || kind == "gcb") return gseIc;
 	if (kind == "smv" || kind == "smcb") return smvIc;
-	if (kind == "ds-sec" || kind == "ds") return dsIc;
+	if (kind == "ds-sec" || kind == "ds" || kind == "fcda") return dsIc;
 	if (kind == "ext-sec" || kind == "extref") return refIc;
-	if (kind == "cb-sec" || kind == "rpt" || kind == "logcb" || kind == "setcb") return ctrlIc;
+	if (kind == "cb-sec" || kind == "rpt" || kind == "rptsec" || kind == "logsec" || kind == "logcb" || kind == "setcb") return ctrlIc;
 	return QIcon();
 }
 
@@ -603,9 +609,21 @@ void MainWindow::buildTree()
 			QTreeWidgetItem* sec = addNode(lnItem, tr("DataSets"), tr("%1 item(s)").arg((int)ln.dataSets.size()),
 				QString("ds-sec:%1:%2").arg(li).arg(ni));
 			for (size_t s = 0; s < ln.dataSets.size(); ++s)
-				addNode(sec, tr("DataSet ") + QString::fromUtf8(ln.dataSets[s].name.c_str()),
+			{
+				QTreeWidgetItem* dsItem = addNode(sec, tr("DataSet ") + QString::fromUtf8(ln.dataSets[s].name.c_str()),
 					tr("%1 FCDA").arg((int)ln.dataSets[s].fcdas.size()),
 					QString("ds:%1:%2:%3").arg(li).arg(ni).arg((int)s));
+				// FCDA 成员挂为子节点，可展开浏览（属性面板可编辑，右键可删除）
+				for (size_t k = 0; k < ln.dataSets[s].fcdas.size(); ++k)
+				{
+					const SclFcda& f = ln.dataSets[s].fcdas[k];
+					QString detail = QString::fromUtf8(f.fc.c_str());
+					if (!f.daName.empty())
+						detail += tr(", DA-level");
+					addNode(dsItem, tr("FCDA ") + QString::fromUtf8(f.RefText().c_str()), detail,
+						QString("fcda:%1:%2:%3:%4").arg(li).arg(ni).arg((int)s).arg((int)k));
+				}
+			}
 		}
 		int cbCount = (int)(ln.reports.size() + ln.gses.size() + ln.smvs.size() + ln.logs.size() + ln.settings.size());
 		if (cbCount > 0)
@@ -613,10 +631,41 @@ void MainWindow::buildTree()
 			QTreeWidgetItem* sec = addNode(lnItem, tr("Control blocks"), tr("%1 item(s)").arg(cbCount),
 				QString("cb-sec:%1:%2").arg(li).arg(ni));
 			for (size_t s = 0; s < ln.reports.size(); ++s)
-				addNode(sec, tr("Report ") + QString::fromUtf8(ln.reports[s].name.c_str()),
-					(ln.reports[s].buffered ? tr("BRCB") : tr("URCB")) + QString(" -> ") +
-					QString::fromUtf8(ln.reports[s].dataSet.c_str()),
+			{
+				const SclReportControl& rc = ln.reports[s];
+				QTreeWidgetItem* rptItem = addNode(sec, tr("Report ") + QString::fromUtf8(rc.name.c_str()),
+					(rc.buffered ? tr("BRCB") : tr("URCB")) + QString(" -> ") +
+					QString::fromUtf8(rc.dataSet.c_str()),
 					QString("rpt:%1:%2:%3").arg(li).arg(ni).arg((int)s));
+				// 报告控制块的 schema 子结构挂为子节点（只读浏览，编辑走父节点属性页）
+				if (rc.trgOps.present)
+					addNode(rptItem, tr("TrgOps"),
+						tr("dchg=%1, qchg=%2, dupd=%3, period=%4").arg(
+							boolText(rc.trgOps.dchg)).arg(
+							boolText(rc.trgOps.qchg)).arg(
+							boolText(rc.trgOps.dupd)).arg(
+							boolText(rc.trgOps.period)),
+						QString("rptsec:%1:%2:%3:0").arg(li).arg(ni).arg((int)s));
+				if (rc.optFields.present)
+				{
+					QStringList on;
+					if (rc.optFields.seqNum) on << "seqNum";
+					if (rc.optFields.timeStamp) on << "timeStamp";
+					if (rc.optFields.dataSet) on << "dataSet";
+					if (rc.optFields.reasonCode) on << "reasonCode";
+					if (rc.optFields.dataRef) on << "dataRef";
+					if (rc.optFields.entryID) on << "entryID";
+					if (rc.optFields.bufOvfl) on << "bufOvfl";
+					if (rc.optFields.config) on << "config";
+					addNode(rptItem, tr("OptFields"),
+						on.isEmpty() ? QString("-") : on.join(", "),
+						QString("rptsec:%1:%2:%3:1").arg(li).arg(ni).arg((int)s));
+				}
+				if (rc.maxClients >= 0)
+					addNode(rptItem, tr("RptEnabled"),
+						tr("max=%1").arg(rc.maxClients),
+						QString("rptsec:%1:%2:%3:2").arg(li).arg(ni).arg((int)s));
+			}
 			for (size_t s = 0; s < ln.gses.size(); ++s)
 				addNode(sec, tr("GOOSE ") + QString::fromUtf8(ln.gses[s].name.c_str()),
 					QString("appID=") + QString::fromUtf8(ln.gses[s].appId.c_str()),
@@ -626,9 +675,20 @@ void MainWindow::buildTree()
 					QString("smvID=") + QString::fromUtf8(ln.smvs[s].smvId.c_str()),
 					QString("smcb:%1:%2:%3").arg(li).arg(ni).arg((int)s));
 			for (size_t s = 0; s < ln.logs.size(); ++s)
-				addNode(sec, tr("Log ") + QString::fromUtf8(ln.logs[s].name.c_str()),
-					QString::fromUtf8(ln.logs[s].dataSet.c_str()),
+			{
+				const SclLogControl& lc = ln.logs[s];
+				QTreeWidgetItem* logItem = addNode(sec, tr("Log ") + QString::fromUtf8(lc.name.c_str()),
+					QString::fromUtf8(lc.dataSet.c_str()),
 					QString("logcb:%1:%2:%3").arg(li).arg(ni).arg((int)s));
+				if (lc.trgOps.present)
+					addNode(logItem, tr("TrgOps"),
+						tr("dchg=%1, qchg=%2, dupd=%3, period=%4").arg(
+							boolText(lc.trgOps.dchg)).arg(
+							boolText(lc.trgOps.qchg)).arg(
+							boolText(lc.trgOps.dupd)).arg(
+							boolText(lc.trgOps.period)),
+						QString("logsec:%1:%2:%3:0").arg(li).arg(ni).arg((int)s));
+			}
 			for (size_t s = 0; s < ln.settings.size(); ++s)
 				addNode(sec, tr("Setting ") + QString::fromUtf8(ln.settings[s].name.c_str()),
 					QString::fromUtf8(ln.settings[s].dataSet.c_str()),
@@ -925,6 +985,72 @@ void MainWindow::populateProps(const QString& path)
 				<< QString::fromUtf8(er.daName.c_str()) << QString::fromUtf8(er.desc.c_str())
 				<< QString::fromUtf8(er.intAddr.c_str());
 			editable << true << true << true << true << true << true << true << true << true;
+		}
+	}
+	else if (parts.size() == 5 && parts[0] == "fcda")
+	{
+		SclLn* ln = lnAt(parts[1].toInt(), parts[2].toInt());
+		int s = parts[3].toInt();
+		int k = parts[4].toInt();
+		if (ln && s >= 0 && s < (int)ln->dataSets.size() && k >= 0 && k < (int)ln->dataSets[s].fcdas.size())
+		{
+			const SclFcda& f = ln->dataSets[s].fcdas[k];
+			keys << tr("iedName (local only, not exported)") << tr("ldInst") << tr("prefix") << tr("lnClass")
+				<< tr("lnInst") << tr("doName") << tr("daName (empty = DO level)") << tr("fc");
+			values << QString::fromUtf8(f.iedName.c_str()) << QString::fromUtf8(f.ldInst.c_str())
+				<< QString::fromUtf8(f.prefix.c_str()) << QString::fromUtf8(f.lnClass.c_str())
+				<< QString::fromUtf8(f.lnInst.c_str()) << QString::fromUtf8(f.doName.c_str())
+				<< QString::fromUtf8(f.daName.c_str()) << QString::fromUtf8(f.fc.c_str());
+			editable << true << true << true << true << true << true << true << true;
+		}
+	}
+	else if (parts.size() == 5 && parts[0] == "rptsec")
+	{
+		// 报告控制块的 schema 子结构（只读浏览；编辑在父节点属性页）
+		SclLn* ln = lnAt(parts[1].toInt(), parts[2].toInt());
+		int s = parts[3].toInt();
+		int sec = parts[4].toInt();
+		if (ln && s >= 0 && s < (int)ln->reports.size())
+		{
+			const SclReportControl& rc = ln->reports[s];
+			if (sec == 0 && rc.trgOps.present)
+			{
+				keys << tr("dchg (value change)") << tr("qchg (quality change)")
+					<< tr("dupd (data update)") << tr("period (integrity)");
+				values << boolText(rc.trgOps.dchg) << boolText(rc.trgOps.qchg)
+					<< boolText(rc.trgOps.dupd) << boolText(rc.trgOps.period);
+				editable << false << false << false << false;
+			}
+			else if (sec == 1 && rc.optFields.present)
+			{
+				keys << tr("seqNum") << tr("timeStamp") << tr("dataSet") << tr("reasonCode")
+					<< tr("dataRef") << tr("entryID") << tr("bufOvfl (Ed2 only)") << tr("config (Ed2 only)");
+				values << boolText(rc.optFields.seqNum) << boolText(rc.optFields.timeStamp)
+					<< boolText(rc.optFields.dataSet) << boolText(rc.optFields.reasonCode)
+					<< boolText(rc.optFields.dataRef) << boolText(rc.optFields.entryID)
+					<< boolText(rc.optFields.bufOvfl) << boolText(rc.optFields.config);
+				editable << false << false << false << false << false << false << false << false;
+			}
+			else if (sec == 2 && rc.maxClients >= 0)
+			{
+				keys << tr("max (client connections)");
+				values << QString::number(rc.maxClients);
+				editable << false;
+			}
+		}
+	}
+	else if (parts.size() == 5 && parts[0] == "logsec")
+	{
+		SclLn* ln = lnAt(parts[1].toInt(), parts[2].toInt());
+		int s = parts[3].toInt();
+		if (ln && s >= 0 && s < (int)ln->logs.size() && ln->logs[s].trgOps.present)
+		{
+			const SclLogControl& lc = ln->logs[s];
+			keys << tr("dchg (value change)") << tr("qchg (quality change)")
+				<< tr("dupd (data update)") << tr("period (integrity)");
+			values << boolText(lc.trgOps.dchg) << boolText(lc.trgOps.qchg)
+				<< boolText(lc.trgOps.dupd) << boolText(lc.trgOps.period);
+			editable << false << false << false << false;
 		}
 	}
 	else if (parts.size() == 4 && parts[0] == "do")
@@ -1498,6 +1624,33 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		}
 		dobj->SetDaiVal(spec.path, normalized.toUtf8().constData());
 	}
+	else if (parts.size() == 5 && parts[0] == "fcda")
+	{
+		SclLn* ln = lnAt(parts[1].toInt(), parts[2].toInt());
+		int s = parts[3].toInt();
+		int k = parts[4].toInt();
+		if (ln == 0 || s < 0 || s >= (int)ln->dataSets.size() || k < 0 || k >= (int)ln->dataSets[s].fcdas.size())
+			return;
+		SclFcda& f = ln->dataSets[s].fcdas[k];
+		switch (row)
+		{
+		case 0: f.iedName = v; break;   // 仅本地，不导出
+		case 1:
+			if (!v.empty() && !validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("ldInst must be valid")); populateProps(path); return; }
+			f.ldInst = v; break;
+		case 2: if (!v.empty() && !validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("Prefix may contain letters/digits/underscore only")); populateProps(path); return; } f.prefix = v; break;
+		case 3:
+			if (v.empty() || !validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("lnClass must be valid")); populateProps(path); return; }
+			f.lnClass = v; break;
+		case 4: if (!v.empty() && !allDigits(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("lnInst must be digits")); populateProps(path); return; } f.lnInst = v; break;
+		case 5:
+			if (v.empty() || !validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("doName must be valid")); populateProps(path); return; }
+			f.doName = v; break;
+		case 6: if (!v.empty() && !validIdent(v)) { QMessageBox::warning(this, tr("Validation failed"), tr("daName must be valid")); populateProps(path); return; } f.daName = v; break;
+		case 7: f.fc = v; break;
+		default: return;
+		}
+	}
 	else if (parts.size() == 4 && parts[0] == "extref")
 	{
 		SclLn* ln = lnAt(parts[1].toInt(), parts[2].toInt());
@@ -1886,6 +2039,7 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 	QAction* addExtRefAct = 0;
 	QAction* editExtRefAct = 0;
 	QAction* delExtRefAct = 0;
+	QAction* delFcdaAct = 0;
 	QAction* addRptAct = 0;
 	QAction* addGcbAct = 0;
 	QAction* addSmcbAct = 0;
@@ -1962,6 +2116,10 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 	{
 		editDsAct = menu.addAction(tr("Edit FCDA members"));
 		delDsAct = menu.addAction(tr("Delete DataSet"));
+	}
+	else if (parts.size() == 5 && parts[0] == "fcda")
+	{
+		delFcdaAct = menu.addAction(tr("Delete FCDA member"));
 	}
 	else if (parts.size() == 3 && parts[0] == "ext-sec")
 	{
@@ -2041,6 +2199,23 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 	{
 		int ni = (parts[0] == "ln0") ? -1 : parts[2].toInt();
 		addExternalRef(parts[1].toInt(), ni);
+		return;
+	}
+	if (picked == delFcdaAct)
+	{
+		int li = parts[1].toInt();
+		int ni = parts[2].toInt();
+		int s = parts[3].toInt();
+		int k = parts[4].toInt();
+		SclLn* ln = lnAt(li, ni);
+		if (ln == 0 || s < 0 || s >= (int)ln->dataSets.size() || k < 0 || k >= (int)ln->dataSets[s].fcdas.size())
+			return;
+		if (QMessageBox::question(this, tr("Confirm"),
+			tr("Delete FCDA member %1?").arg(QString::fromUtf8(ln->dataSets[s].fcdas[k].RefText().c_str()))) != QMessageBox::Yes)
+			return;
+		ln->dataSets[s].fcdas.erase(ln->dataSets[s].fcdas.begin() + k);
+		buildTree();
+		log(tr("FCDA member removed"));
 		return;
 	}
 	if (picked == editExtRefAct || picked == delExtRefAct)
