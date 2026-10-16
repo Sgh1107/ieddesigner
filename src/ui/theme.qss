@@ -1,0 +1,92 @@
+/* ============================================================
+   IED²esigner 界面主题（QSS）
+   修改本文件后重启程序即可生效，无需重新编译。
+   程序按以下顺序查找并加载第一个存在的文件：
+     1. <exe目录>/theme.qss
+     2. <exe目录>/../theme.qss   （MSVC 构建 Debug/Release 布局）
+     3. 程序内置版本（qrc:/ui/theme.qss，兜底）
+   ============================================================ */
+
+/* 注意：QSS 生效后 QApplication::setFont 不再起作用，字号以这里为准 */
+* {
+    font-size: 11pt;
+}
+
+/* ---------- 属性面板（精密仪器风：白面板 + 发丝线输入框 + 信号蓝焦点环） ---------- */
+#propScroll, #propPanel { background: #FFFFFF; }
+#propPanel QLabel {
+    color: #3D4A5C;
+    background: transparent;
+    font-size: 10pt;
+}
+#propPanel QLineEdit {
+    border: 1px solid #A9B7C8;
+    border-radius: 4px;
+    padding: 3px 8px;
+    min-height: 22px;
+    background: #FFFFFF;
+    color: #000000;
+    font-weight: 600;
+    selection-background-color: #1B54BE;
+    selection-color: #FFFFFF;
+}
+#propPanel QLineEdit:focus { border: 1px solid #1B54BE; }
+#propPanel QLineEdit:read-only {
+    background: #EEF1F6;
+    color: #49596D;
+    border-color: #C8D2DE;
+    font-weight: 400;
+}
+#propPanel QComboBox {
+    border: 1px solid #A9B7C8;
+    border-radius: 4px;
+    padding: 3px 26px 3px 8px;
+    min-height: 22px;
+    background: #FFFFFF;
+    color: #000000;
+    font-weight: 600;
+}
+#propPanel QComboBox:focus { border: 1px solid #1B54BE; }
+#propPanel QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 24px;
+    border: none;
+    background: transparent;
+}
+#propPanel QComboBox::down-arrow {
+    image: url(:/icons/chevron-down.svg);
+    width: 12px;
+    height: 12px;
+}
+
+/* ---------- 日志窗格 ---------- */
+QPlainTextEdit {
+    background: #FFFFFF;
+    color: #24303F;
+    font-size: 10pt;
+}
+
+/* ---------- 属性面板滚动条 ---------- */
+#propScroll QScrollBar:vertical { background: transparent; width: 8px; margin: 0; }
+#propScroll QScrollBar::handle:vertical { background: #B0BDCD; border-radius: 4px; min-height: 30px; }
+#propScroll QScrollBar::handle:vertical:hover { background: #96A5B8; }
+#propScroll QScrollBar::add-line, #propScroll QScrollBar::sub-line { width: 0; height: 0; }
+#propScroll QScrollBar::add-page, #propScroll QScrollBar::sub-page { background: transparent; }
+
+/* ---------- 模型树：网格线 + 表头 + 悬停/选中样式（分隔线颜色/行高在此调整） ---------- */
+QTreeWidget { background: #FFFFFF; gridline-color: #E4E9EF; }
+QHeaderView::section {
+    background: #F7F9FC;
+    border: none;
+    border-right: 1px solid #E4E9EF;
+    border-bottom: 1px solid #E4E9EF;
+    padding: 4px 8px;
+}
+QHeaderView::section:last { border-right: none; }
+QTreeWidget::item {
+    min-height: 30px;
+    border-bottom: 1px solid #E4E9EF;
+}
+QTreeWidget::item:hover { background: #F2F5F9; }
+QTreeWidget::item:selected { background: #DCE7F5; color: #1A2733; }

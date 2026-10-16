@@ -5,7 +5,12 @@ TARGET = ieddesigner
 
 QT	+= core gui widgets xml concurrent svg
 
-RESOURCES += src/resources/icons.qrc schemas/schemas.qrc
+RESOURCES += src/resources/icons.qrc schemas/schemas.qrc src/ui/theme.qrc
+
+# 主题 QSS 同步复制到构建目录：运行时优先加载 exe 旁的 theme.qss，改样式免重编译
+theme.files = $$PWD/src/ui/theme.qss
+theme.path = $$OUT_PWD
+COPIES += theme
 
 # 界面翻译：源码为英文，中文经 translate/ieddesigner_zh_CN.ts -> .qm 加载
 # .qm 同时打包进 qrc 资源（部署免拷贝），运行时可被 exe 目录 translate/ 下的外部 .qm 覆盖

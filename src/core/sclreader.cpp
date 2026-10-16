@@ -558,6 +558,8 @@ namespace SclReader
 
 		TypeTables tables;
 		ParseTypeTables(root, tables);
+		// 把文件自定义 DAType 注入模板库：Struct DA 展开时才能查到 BDA 层级
+		SclTemplates::RegisterFileDaTypes(tables.daTypeBdas);
 
 		std::vector<QDomElement> ieds = ChildrenByLocalName(root, "IED");
 		QDomElement iedElem;

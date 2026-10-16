@@ -60,6 +60,7 @@ static QString boolText(bool v)
 #include <QTreeWidget>
 #include <QStyledItemDelegate>
 #include <QLineEdit>
+#include <map>
 #include <cctype>
 
 // 详细列就地编辑委托：仅对"详细列 = 单一值"的节点类型开放编辑
@@ -254,12 +255,6 @@ MainWindow::MainWindow(QWidget* parent)
 	, m_recentMenu(0)
 	, m_browseThread(0)
 {
-	// 界面字体 10
-	{
-		QFont appFont = QApplication::font();
-		appFont.setPointSize(appFont.pointSize() + 1);
-		QApplication::setFont(appFont);
-	}
 	setWindowTitle(tr("IED²esigner"));
 	setWindowIcon(QIcon(":/icons/app.png"));
 	resize(1100, 700);
@@ -279,7 +274,6 @@ MainWindow::MainWindow(QWidget* parent)
 	QWidget* propPanel = new QWidget(m_propScroll);
 	propPanel->setObjectName("propPanel");
 	// 关键：普通 QWidget 需开启此属性，QSS 的 background 声明才生效
-	// （否则标签的 transparent 与面板空白区透出系统灰底，出现色块突兀感）
 	propPanel->setAttribute(Qt::WA_StyledBackground, true);
 	m_propGrid = new QGridLayout(propPanel);
 	m_propGrid->setContentsMargins(16, 16, 16, 16);
@@ -310,27 +304,33 @@ MainWindow::MainWindow(QWidget* parent)
 	m_tree->setEditTriggers(QAbstractItemView::DoubleClicked);
 	connect(m_tree, SIGNAL(itemChanged(QTreeWidgetItem*, int)), this, SLOT(onTreeItemChanged(QTreeWidgetItem*, int)));
 
-	setStyleSheet(QString(
-		"#propScroll, #propPanel { background: #FFFFFF; }"
-		"#propPanel QLabel { color: #3D4A5C; background: transparent; font-size: 11pt; }"
-		"#propPanel QLineEdit { border: 1px solid #A9B7C8; border-radius: 4px;"
-		"  padding: 3px 8px; min-height: 22px; background: #FFFFFF; color: #000000;"
-		"  font-weight: 600; selection-background-color: #1B54BE; selection-color: #FFFFFF; }"
-		"#propPanel QLineEdit:focus { border: 1px solid #1B54BE; }"
-		"#propPanel QLineEdit:read-only { background: #EEF1F6; color: #49596D; border-color: #C8D2DE; font-weight: 400; }"
-		"#propPanel QComboBox { border: 1px solid #A9B7C8; border-radius: 4px;"
-		"  padding: 3px 26px 3px 8px; min-height: 22px; background: #FFFFFF; color: #000000; font-weight: 600; }"
-		"#propPanel QComboBox:focus { border: 1px solid #1B54BE; }"
-		"#propPanel QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: top right;"
-		"  width: 24px; border: none; background: transparent; }"
-		"#propPanel QComboBox::down-arrow { image: url(:/icons/chevron-down.svg); width: 12px; height: 12px; }"
-		"QPlainTextEdit { background: #FFFFFF; color: #24303F; font-size: 11pt; }"
-		"#propScroll QScrollBar:vertical { background: transparent; width: 8px; margin: 0; }"
-		"#propScroll QScrollBar::handle:vertical { background: #B0BDCD; border-radius: 4px; min-height: 30px; }"
-		"#propScroll QScrollBar::handle:vertical:hover { background: #96A5B8; }"
-		"#propScroll QScrollBar::add-line, #propScroll QScrollBar::sub-line { width: 0; height: 0; }"
-		"#propScroll QScrollBar::add-page, #propScroll QScrollBar::sub-page { background: transparent; }"
-	));
+	// 界面样式：优先加载 exe 目录的 theme.qss（改完重启即生效，无需重编译），
+	// 其次上级目录（MSVC 构建 Debug/Release 布局），都没有则用编译内置兜底版本。
+	// 注意：QSS 生效后 QApplication::setFont 对控件不再起作用，全局字号
+	// 统一在 theme.qss 的 * { font-size } 处调整。
+	{
+		QString qss;
+		const QStringList candidates = {
+			QCoreApplication::applicationDirPath() + "/theme.qss",
+			QCoreApplication::applicationDirPath() + "/../theme.qss"
+		};
+		for (const QString& p : candidates)
+		{
+			QFile f(p);
+			if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+			{
+				qss = QString::fromUtf8(f.readAll());
+				break;
+			}
+		}
+		if (qss.isEmpty())
+		{
+			QFile f(":/ui/theme.qss");
+			if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+				qss = QString::fromUtf8(f.readAll());
+		}
+		setStyleSheet(qss);
+	}
 
 	m_model = MakeNewModel();
 	buildTree();
@@ -502,6 +502,7 @@ void MainWindow::rebuildRecentMenu()
 	}
 }
 
+// 最多保存十个历史
 void MainWindow::pushRecentFile(const QString& path)
 {
 	QSettings settings("newfert", "ieddesigner");
@@ -695,19 +696,42 @@ void MainWindow::buildTree()
 			detail, QString("ap:%1").arg((int)(a + 1)));
 	}
 
-	// DO 下挂 DAI 子节点（点分路径，未设置的显示为空值）
+	// DO 下挂 DA/BDA 层级节点（specs 前序遍历序：Struct 节点先于其子项，
+	// 按 path 前缀挂父；Struct 中间节点 detail 显示 Struct，叶子显示 bType/fc[ = 值]）
 	auto addDaiNodes = [this](QTreeWidgetItem* doItem, int li, int ni, int di, const SclDo& dobj) {
 		std::vector<SclDaiSpec> specs = daiSpecsFor(dobj);
+		std::map<std::string, QTreeWidgetItem*> nodeByPath;   // spec path -> 树节点
 		for (size_t k = 0; k < specs.size(); ++k)
 		{
-			if (specs[k].path == "d")
-				continue;
-			QString detail = QString::fromUtf8(specs[k].bType.c_str()) + "/" + QString::fromUtf8(specs[k].fc.c_str());
-			const std::string* val = dobj.FindDaiVal(specs[k].path);
-			if (val)
-				detail += " = " + QString::fromUtf8(val->c_str());
-			addNode(doItem, tr("DAI ") + QString::fromUtf8(specs[k].path.c_str()), detail,
-				QString("dai:%1:%2:%3:%4").arg(li).arg(ni).arg(di).arg((int)k));
+			const SclDaiSpec& sp = specs[k];
+			if (sp.path == "d")
+				continue;   // 描述节点走 DOI 描述字段，不在树上展开
+			std::string name = sp.path;
+			std::string parentPath;
+			size_t dot = sp.path.rfind('.');
+			if (dot != std::string::npos)
+			{
+				parentPath = sp.path.substr(0, dot);
+				name = sp.path.substr(dot + 1);
+			}
+			QTreeWidgetItem* parentItem = doItem;
+			std::map<std::string, QTreeWidgetItem*>::iterator pit = nodeByPath.find(parentPath);
+			if (dot != std::string::npos && pit != nodeByPath.end())
+				parentItem = pit->second;
+
+			QString detail;
+			if (sp.bType == "Struct")
+				detail = tr("Struct");
+			else
+			{
+				detail = QString::fromUtf8(sp.bType.c_str()) + "/" + QString::fromUtf8(sp.fc.c_str());
+				const std::string* val = dobj.FindDaiVal(sp.path);
+				if (val)
+					detail += " = " + QString::fromUtf8(val->c_str());
+			}
+			QTreeWidgetItem* item = addNode(parentItem, tr("DAI ") + QString::fromUtf8(name.c_str()),
+				detail, QString("dai:%1:%2:%3:%4").arg(li).arg(ni).arg(di).arg((int)k));
+			nodeByPath[sp.path] = item;
 		}
 	};
 
@@ -4339,8 +4363,7 @@ std::vector<SclDaiSpec> MainWindow::daiSpecsFor(const SclDo& dobj) const
 
 bool MainWindow::cdcNeedsStValEnum(const std::vector<SclDa>& das)
 {
-	for (size_t i = 0; i < das.size(); ++i)
-	{
+	for (size_t i = 0; i < das.size(); ++i) {
 		if (das[i].name == "stVal" && das[i].bType == "Enum" && das[i].structType.empty())
 			return true;
 	}
@@ -4350,8 +4373,8 @@ bool MainWindow::cdcNeedsStValEnum(const std::vector<SclDa>& das)
 bool MainWindow::daiTypeEditable(const std::string& bType)
 {
 	return bType == "BOOLEAN" || bType.compare(0, 3, "INT") == 0 || bType.compare(0, 4, "UINT") == 0 ||
-		bType == "FLOAT32" || bType == "FLOAT64" || bType == "Enum" ||
-		bType.compare(0, 9, "VisString") == 0 || bType.compare(0, 7, "Unicode") == 0;
+		   bType == "FLOAT32" || bType == "FLOAT64" || bType == "Enum" ||
+		   bType.compare(0, 9, "VisString") == 0 || bType.compare(0, 7, "Unicode") == 0;
 }
 
 bool MainWindow::daiValueValid(const SclDaiSpec& spec, const QString& value, QString& normalized) const

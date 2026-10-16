@@ -22,6 +22,8 @@ static const SclDaT kMv[] = {
 };
 
 static const SclDaT kSpc[] = {
+	{ "origin", "Struct", "ST", "Originator_1" },
+	{ "ctlNum", "INT8U", "ST", 0 },
 	{ "stVal", "BOOLEAN", "ST", 0 },
 	{ "q", "Quality", "ST", 0 },
 	{ "t", "Timestamp", "ST", 0 },
@@ -189,6 +191,18 @@ static const SclLnT kLnTable[] = {
 
 namespace SclTemplates
 {
+	// 打开文件时解析出的 DAType 定义（reader 注入）：使文件自定义的
+	// Struct DA（如 SPCOperate_1/Originator_1）也能展开出 BDA 层级
+	static std::map<std::string, std::vector<SclDa> >& FileDaTypes()
+	{
+		static std::map<std::string, std::vector<SclDa> > table;
+		return table;
+	}
+
+	void RegisterFileDaTypes(const std::map<std::string, std::vector<SclDa> >& daTypeBdas)
+	{
+		FileDaTypes() = daTypeBdas;
+	}
 	const std::vector<SclLnT>& LnTypes()
 	{
 		static std::vector<SclLnT> table;
@@ -247,15 +261,27 @@ namespace SclTemplates
 	std::vector<SclDa> BdasForDaType(const std::string& id)
 	{
 		std::vector<SclDa> result;
+		// 先查打开文件注册的 DAType 表，再查内置表（内置表只是常见子集）
+		std::map<std::string, std::vector<SclDa> >::const_iterator it = FileDaTypes().find(id);
+		if (it != FileDaTypes().end())
+			return it->second;
 		if (id == "AnalogueValue_1")
 		{
 			SclDa bda; bda.name = "f"; bda.bType = "FLOAT32"; bda.fc = ""; result.push_back(bda);
 		}
+		else if (id == "Originator_1")
+		{
+			SclDa a; a.name = "orCat"; a.bType = "Enum"; a.fc = ""; a.structType = "OrCat"; result.push_back(a);
+			SclDa b; b.name = "orIdent"; b.bType = "Octet64"; b.fc = ""; result.push_back(b);
+		}
 		else if (id == "SPCOperate_1")
 		{
 			SclDa a; a.name = "ctlVal"; a.bType = "BOOLEAN"; a.fc = ""; result.push_back(a);
+			SclDa o; o.name = "origin"; o.bType = "Struct"; o.fc = ""; o.structType = "Originator_1"; result.push_back(o);
+			SclDa n; n.name = "ctlNum"; n.bType = "INT8U"; n.fc = ""; result.push_back(n);
 			SclDa b; b.name = "T"; b.bType = "Timestamp"; b.fc = ""; result.push_back(b);
 			SclDa c; c.name = "Test"; c.bType = "BOOLEAN"; c.fc = ""; result.push_back(c);
+			SclDa d; d.name = "Check"; d.bType = "Enum"; d.fc = ""; d.structType = "Check"; result.push_back(d);
 		}
 		else if (id == "DPCOperate_1")
 		{
@@ -308,38 +334,33 @@ namespace SclTemplates
 		return result;
 	}
 
-	static void ExpandDas(const std::vector<SclDa>& das, std::vector<SclDaiSpec>& out)
+	// 递归展开 DA/BDA：Struct 节点本身入表（树用于分组展示），
+	// 其子 BDA 以 "父路径.子名" 继续展开（支持任意层级嵌套）
+	static void ExpandDas(const std::vector<SclDa>& das, const std::string& prefix,
+		std::vector<SclDaiSpec>& out)
 	{
 		for (size_t i = 0; i < das.size(); ++i)
 		{
 			const SclDa& da = das[i];
+			std::string path = prefix.empty() ? da.name : (prefix + "." + da.name);
 			if (da.bType == "Struct")
 			{
+				// 结构节点本身入表（bType=Struct，树中作为分组节点，值不可编辑）
+				SclDaiSpec spec;
+				spec.path = path;
+				spec.bType = da.bType;
+				spec.fc = da.fc;
+				spec.enumId = da.structType;
+				out.push_back(spec);
+				// 递归展开子 BDA；DAType 未知时止步于本节点（仍展示结构名）
 				std::vector<SclDa> bdas = BdasForDaType(da.structType);
-				for (size_t b = 0; b < bdas.size(); ++b)
-				{
-					SclDaiSpec spec;
-					spec.path = da.name + "." + bdas[b].name;
-					spec.bType = bdas[b].bType;
-					spec.fc = da.fc;
-					spec.enumId = bdas[b].structType;
-					out.push_back(spec);
-				}
-				if (bdas.empty())
-				{
-					// 未知 DAType：保留 Struct 本身，值不可编辑
-					SclDaiSpec spec;
-					spec.path = da.name;
-					spec.bType = da.bType;
-					spec.fc = da.fc;
-					spec.enumId = da.structType;
-					out.push_back(spec);
-				}
+				if (!bdas.empty())
+					ExpandDas(bdas, path, out);
 			}
 			else
 			{
 				SclDaiSpec spec;
-				spec.path = da.name;
+				spec.path = path;
 				spec.bType = da.bType;
 				spec.fc = da.fc;
 				spec.enumId = da.structType;
@@ -353,7 +374,7 @@ namespace SclTemplates
 	{
 		std::vector<SclDa> das = hasCustomDas ? customDas : DasForCdc(cdc, stValEnum);
 		std::vector<SclDaiSpec> out;
-		ExpandDas(das, out);
+		ExpandDas(das, "", out);
 		return out;
 	}
 

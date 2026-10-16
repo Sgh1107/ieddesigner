@@ -36,7 +36,7 @@
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="283" />
         <source>Ready. New model loaded: IED=%1</source>
-        <translation>就绪。新建模型已载入：IED=%1</translation>
+        <translation>新建模型已载入：IED=%1</translation>
     </message>
     <message>
         <location filename="../src/ui/mainwindow.cpp" line="288" />
