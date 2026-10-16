@@ -477,12 +477,14 @@ QIcon MainWindow::iconForPath(const QString& path) const
 	if (kind == "ln" || kind == "ln0") return lnIc;
 	if (kind == "do") return doIc;
 	if (kind == "dai") return daiIc;
-	if (kind == "comm" || kind == "subnet") return commIc;
-	if (kind == "gse" || kind == "gcb") return gseIc;
-	if (kind == "smv" || kind == "smcb") return smvIc;
+	if (kind == "comm" || kind == "subnet" || kind == "addr") return commIc;
+	if (kind == "capp") return daiIc;
+	if (kind == "gse" || kind == "gcb" || kind == "gse-sec") return gseIc;
+	if (kind == "smv" || kind == "smcb" || kind == "smv-sec") return smvIc;
 	if (kind == "ds-sec" || kind == "ds" || kind == "fcda") return dsIc;
 	if (kind == "ext-sec" || kind == "extref") return refIc;
-	if (kind == "cb-sec" || kind == "rpt" || kind == "rptsec" || kind == "logsec" || kind == "logcb" || kind == "setcb") return ctrlIc;
+	if (kind == "cb-sec" || kind == "rpt" || kind == "rpt-sec" || kind == "rptsec" || kind == "logsec"
+		|| kind == "logcb" || kind == "log-sec" || kind == "setcb" || kind == "set-sec") return ctrlIc;
 	return QIcon();
 }
 
@@ -593,20 +595,14 @@ void MainWindow::buildTree()
 
 	// LN 下数据集与控制块分组（仅在非空时显示）
 	auto addCbSections = [&](QTreeWidgetItem* lnItem, int li, int ni, const SclLn& ln) {
-		// 外部信号引用分组（GOOSE 订阅声明）
-		if (!ln.extRefs.empty())
+		// LN 下按类型固定分组（对齐 yx：每类一组标签节点，空组也显示）
+		auto makeSec = [&](const QString& title, int count, const QString& path) {
+			return addNode(lnItem, title, tr("%1 item(s)").arg(count), path);
+		};
+
+		// 1. 数据集
 		{
-			QTreeWidgetItem* sec = addNode(lnItem, tr("External references"),
-				tr("%1 item(s)").arg((int)ln.extRefs.size()),
-				QString("ext-sec:%1:%2").arg(li).arg(ni));
-			for (size_t s = 0; s < ln.extRefs.size(); ++s)
-				addNode(sec, tr("ExtRef ") + QString::fromUtf8(ln.extRefs[s].doName.c_str()),
-					QString::fromUtf8(ln.extRefs[s].RefText().c_str()),
-					QString("extref:%1:%2:%3").arg(li).arg(ni).arg((int)s));
-		}
-		if (!ln.dataSets.empty())
-		{
-			QTreeWidgetItem* sec = addNode(lnItem, tr("DataSets"), tr("%1 item(s)").arg((int)ln.dataSets.size()),
+			QTreeWidgetItem* sec = makeSec(tr("DataSets"), (int)ln.dataSets.size(),
 				QString("ds-sec:%1:%2").arg(li).arg(ni));
 			for (size_t s = 0; s < ln.dataSets.size(); ++s)
 			{
@@ -625,11 +621,11 @@ void MainWindow::buildTree()
 				}
 			}
 		}
-		int cbCount = (int)(ln.reports.size() + ln.gses.size() + ln.smvs.size() + ln.logs.size() + ln.settings.size());
-		if (cbCount > 0)
+
+		// 2. 报告控制块
 		{
-			QTreeWidgetItem* sec = addNode(lnItem, tr("Control blocks"), tr("%1 item(s)").arg(cbCount),
-				QString("cb-sec:%1:%2").arg(li).arg(ni));
+			QTreeWidgetItem* sec = makeSec(tr("Report controls"), (int)ln.reports.size(),
+				QString("rpt-sec:%1:%2").arg(li).arg(ni));
 			for (size_t s = 0; s < ln.reports.size(); ++s)
 			{
 				const SclReportControl& rc = ln.reports[s];
@@ -666,14 +662,32 @@ void MainWindow::buildTree()
 						tr("max=%1").arg(rc.maxClients),
 						QString("rptsec:%1:%2:%3:2").arg(li).arg(ni).arg((int)s));
 			}
+		}
+
+		// 3. GOOSE 控制块
+		{
+			QTreeWidgetItem* sec = makeSec(tr("GOOSE controls"), (int)ln.gses.size(),
+				QString("gse-sec:%1:%2").arg(li).arg(ni));
 			for (size_t s = 0; s < ln.gses.size(); ++s)
 				addNode(sec, tr("GOOSE ") + QString::fromUtf8(ln.gses[s].name.c_str()),
 					QString("appID=") + QString::fromUtf8(ln.gses[s].appId.c_str()),
 					QString("gcb:%1:%2:%3").arg(li).arg(ni).arg((int)s));
+		}
+
+		// 4. 采样值控制块
+		{
+			QTreeWidgetItem* sec = makeSec(tr("Sampled value controls"), (int)ln.smvs.size(),
+				QString("smv-sec:%1:%2").arg(li).arg(ni));
 			for (size_t s = 0; s < ln.smvs.size(); ++s)
 				addNode(sec, tr("SampledValue ") + QString::fromUtf8(ln.smvs[s].name.c_str()),
 					QString("smvID=") + QString::fromUtf8(ln.smvs[s].smvId.c_str()),
 					QString("smcb:%1:%2:%3").arg(li).arg(ni).arg((int)s));
+		}
+
+		// 5. 日志控制块
+		{
+			QTreeWidgetItem* sec = makeSec(tr("Log controls"), (int)ln.logs.size(),
+				QString("log-sec:%1:%2").arg(li).arg(ni));
 			for (size_t s = 0; s < ln.logs.size(); ++s)
 			{
 				const SclLogControl& lc = ln.logs[s];
@@ -689,10 +703,26 @@ void MainWindow::buildTree()
 							boolText(lc.trgOps.period)),
 						QString("logsec:%1:%2:%3:0").arg(li).arg(ni).arg((int)s));
 			}
+		}
+
+		// 6. 定值控制块
+		{
+			QTreeWidgetItem* sec = makeSec(tr("Setting controls"), (int)ln.settings.size(),
+				QString("set-sec:%1:%2").arg(li).arg(ni));
 			for (size_t s = 0; s < ln.settings.size(); ++s)
 				addNode(sec, tr("Setting ") + QString::fromUtf8(ln.settings[s].name.c_str()),
 					QString::fromUtf8(ln.settings[s].dataSet.c_str()),
 					QString("setcb:%1:%2:%3").arg(li).arg(ni).arg((int)s));
+		}
+
+		// 7. 外部引用（Inputs，GOOSE 订阅声明）
+		{
+			QTreeWidgetItem* sec = makeSec(tr("External references"), (int)ln.extRefs.size(),
+				QString("ext-sec:%1:%2").arg(li).arg(ni));
+			for (size_t s = 0; s < ln.extRefs.size(); ++s)
+				addNode(sec, tr("ExtRef ") + QString::fromUtf8(ln.extRefs[s].doName.c_str()),
+					QString::fromUtf8(ln.extRefs[s].RefText().c_str()),
+					QString("extref:%1:%2:%3").arg(li).arg(ni).arg((int)s));
 		}
 	};
 
@@ -750,6 +780,16 @@ void MainWindow::buildTree()
 			QTreeWidgetItem* capItem = addNode(snItem, tr("AccessPoint ") + QString::fromUtf8(cap.apName.c_str()),
 				QString::fromUtf8(cap.iedName.c_str()) + tr(", %1 P parameters").arg((int)cap.pParams.size()),
 				QString("cap:%1:%2").arg((int)s).arg((int)c));
+			// 通信参数组（Address 的 P 参数，值可在属性面板编辑）
+			{
+				QTreeWidgetItem* addrItem = addNode(capItem, tr("Address parameters"),
+					tr("%1 P parameters").arg((int)cap.pParams.size()),
+					QString("addr:%1:%2").arg((int)s).arg((int)c));
+				for (size_t p = 0; p < cap.pParams.size(); ++p)
+					addNode(addrItem, QString::fromUtf8(cap.pParams[p].first.c_str()),
+						QString::fromUtf8(cap.pParams[p].second.c_str()),
+						QString("capp:%1:%2:%3").arg((int)s).arg((int)c).arg((int)p));
+			}
 			for (size_t g = 0; g < cap.gses.size(); ++g)
 				addNode(capItem, tr("GSE ") + QString::fromUtf8(cap.gses[g].ldInst.c_str()) +
 					QString("/") + QString::fromUtf8(cap.gses[g].cbName.c_str()),
@@ -1051,6 +1091,22 @@ void MainWindow::populateProps(const QString& path)
 			values << boolText(lc.trgOps.dchg) << boolText(lc.trgOps.qchg)
 				<< boolText(lc.trgOps.dupd) << boolText(lc.trgOps.period);
 			editable << false << false << false << false;
+		}
+	}
+	else if (parts.size() == 5 && parts[0] == "capp")
+	{
+		// 通信参数 P 项：type 只读，值可编辑
+		int sIdx = parts[1].toInt();
+		int cIdx = parts[2].toInt();
+		int k = parts[3].toInt();
+		if (sIdx >= 0 && sIdx < (int)m_model.subnets.size()
+			&& cIdx >= 0 && cIdx < (int)m_model.subnets[sIdx].aps.size()
+			&& k >= 0 && k < (int)m_model.subnets[sIdx].aps[cIdx].pParams.size())
+		{
+			keys << tr("P type") << tr("Value");
+			values << QString::fromUtf8(m_model.subnets[sIdx].aps[cIdx].pParams[k].first.c_str())
+				<< QString::fromUtf8(m_model.subnets[sIdx].aps[cIdx].pParams[k].second.c_str());
+			editable << false << true;
 		}
 	}
 	else if (parts.size() == 4 && parts[0] == "do")
@@ -1624,6 +1680,26 @@ void MainWindow::applyProp(const QString& path, int row, const QString& value)
 		}
 		dobj->SetDaiVal(spec.path, normalized.toUtf8().constData());
 	}
+	else if (parts.size() == 5 && parts[0] == "capp")
+	{
+		int sIdx = parts[1].toInt();
+		int cIdx = parts[2].toInt();
+		int k = parts[3].toInt();
+		if (sIdx < 0 || sIdx >= (int)m_model.subnets.size()
+			|| cIdx < 0 || cIdx >= (int)m_model.subnets[sIdx].aps.size()
+			|| k < 0 || k >= (int)m_model.subnets[sIdx].aps[cIdx].pParams.size())
+			return;
+		if (row == 1)
+		{
+			if (v.empty())
+			{
+				QMessageBox::warning(this, tr("Validation failed"), tr("Value cannot be empty"));
+				populateProps(path);
+				return;
+			}
+			m_model.subnets[sIdx].aps[cIdx].pParams[k].second = v;
+		}
+	}
 	else if (parts.size() == 5 && parts[0] == "fcda")
 	{
 		SclLn* ln = lnAt(parts[1].toInt(), parts[2].toInt());
@@ -2120,6 +2196,30 @@ void MainWindow::onTreeContextMenu(const QPoint& pos)
 	else if (parts.size() == 5 && parts[0] == "fcda")
 	{
 		delFcdaAct = menu.addAction(tr("Delete FCDA member"));
+	}
+	else if (parts.size() == 3 && parts[0] == "ds-sec")
+	{
+		addDsAct = menu.addAction(tr("Add DataSet"));
+	}
+	else if (parts.size() == 3 && parts[0] == "rpt-sec")
+	{
+		addRptAct = menu.addAction(tr("Add report control"));
+	}
+	else if (parts.size() == 3 && parts[0] == "gse-sec")
+	{
+		addGcbAct = menu.addAction(tr("Add GOOSE control"));
+	}
+	else if (parts.size() == 3 && parts[0] == "smv-sec")
+	{
+		addSmcbAct = menu.addAction(tr("Add sampled value control"));
+	}
+	else if (parts.size() == 3 && parts[0] == "log-sec")
+	{
+		addLogcbAct = menu.addAction(tr("Add log control"));
+	}
+	else if (parts.size() == 3 && parts[0] == "set-sec")
+	{
+		addSetcbAct = menu.addAction(tr("Add setting control"));
 	}
 	else if (parts.size() == 3 && parts[0] == "ext-sec")
 	{
