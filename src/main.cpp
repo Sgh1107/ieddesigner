@@ -15,6 +15,7 @@
 
 #include "mainwindow.h"
 #include "sclmodel.h"
+#include "scltemplates.h"
 #include "sclwriter.h"
 #include "sclreader.h"
 #include "jsonmodel.h"
@@ -23,6 +24,9 @@
 #include "csvwriter.h"
 #include "modelvalidate.h"
 #include "xsdvalidator.h"
+
+// 第三期任务 3：打印 loader 侧数据集/控制块语义校验结果
+static void PrintSemantics(const char* tag, const ValidateOutcome& v);
 
 static int RunSelfTest(const char* icdPath, const char* csvPath)
 {
@@ -48,9 +52,10 @@ static int RunSelfTest(const char* icdPath, const char* csvPath)
 		(int)out.table.sgRefs.size());
 	printf("SELFTEST loaderOk=%d sgQuirk=%d err=%s\n",
 		out.loaderOk ? 1 : 0, out.sgQuirk ? 1 : 0, out.errorText.c_str());
+	PrintSemantics("SELFTEST", out);
 	printf("SELFTEST csv=%s\n", csvOk ? "ok" : err.c_str());
 	remove(temp.c_str());
-	return (out.refsParsed && csvOk) ? 0 : 1;
+	return (out.refsParsed && out.sgPoints > 0 && csvOk) ? 0 : 1;
 }
 
 static int RunRoundTrip(const char* srcPath)
@@ -93,6 +98,8 @@ static int RunRoundTrip(const char* srcPath)
 		(int)rt.table.sgRefs.size(), rt.loaderOk ? 1 : 0);
 	printf("ROUNDTRIP reread=%d lds=%d err=%s\n",
 		rereadOk ? 1 : 0, (int)reloaded.ied.lds.size(), err.c_str());
+	PrintSemantics("ROUNDTRIP orig", orig);
+	PrintSemantics("ROUNDTRIP rt", rt);
 
 	// ExtRef 外部引用计数比对（第三期任务 1 回归）
 	int extSrc = 0, extDst = 0;
@@ -120,6 +127,17 @@ static int RunRoundTrip(const char* srcPath)
 	return (same && rereadOk && orig.refsParsed) ? 0 : 1;
 }
 
+// 第三期任务 3：打印 loader 侧数据集/控制块语义校验结果
+static void PrintSemantics(const char* tag, const ValidateOutcome& v)
+{
+	printf("%s semantics ds=%d report=%d gse=%d sv=%d log=%d setting=%d gseAddr=%d smvAddr=%d errors=%d\n",
+		tag, v.datasetCount, v.reportControlCount, v.gseControlCount,
+		v.sampledValueControlCount, v.logControlCount, v.settingControlCount,
+		v.gseAddressCount, v.smvAddressCount, (int)v.semanticErrors.size());
+	for (size_t i = 0; i < v.semanticErrors.size(); ++i)
+		printf("%s semantic warning: %s\n", tag, v.semanticErrors[i].c_str());
+}
+
 static void PrintModelStats(const char* tag, const SclModel& model, const ValidateOutcome& v)
 {
 	int lnCount = 0;
@@ -138,6 +156,7 @@ static void PrintModelStats(const char* tag, const SclModel& model, const Valida
 		(int)v.table.diRefs.size(), (int)v.table.aiRefs.size(),
 		(int)v.table.doRefs.size(), (int)v.table.aoRefs.size(),
 		(int)v.table.sgRefs.size(), v.loaderOk ? 1 : 0);
+	PrintSemantics(tag, v);
 }
 
 static int RunJsonImport(const char* jsonPath)
@@ -432,6 +451,12 @@ static int RunSkeleton(const char* outPath)
 		}
 	}
 
+	// 定值组逻辑节点（第三期任务 3：验证 SG 定值点表非空）
+	SclLn sgcb = SclTemplates::MakeLn("SGCB");
+	sgcb.inst = "1";
+	sgcb.desc = "Setting group control";
+	ld.lns.push_back(sgcb);
+
 	// 数据集 + 控制块 + GSE 通信地址（验证完整链路与加载器兼容性）
 	SclDataSet ds;
 	ds.name = "dsRelay";
@@ -621,7 +646,7 @@ static int RunSkeleton(const char* outPath)
 	{ printf("SKELETON diff: subnets/gse address\n"); diff++; }
 	printf("SKELETON reread diff=%d services=%d pParams=%d\n", diff,
 		(int)reloaded.ied.services.size(), (int)reloaded.ied.pParams.size());
-	return (v.refsParsed && diff == 0) ? 0 : 1;
+	return (v.refsParsed && v.sgPoints > 0 && v.semanticErrors.empty() && diff == 0) ? 0 : 1;
 }
 
 // 界面主题：加载独立 QSS 文件（应用级，所有窗口含对话框统一生效）

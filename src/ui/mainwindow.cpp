@@ -2119,12 +2119,19 @@ void MainWindow::validateAndLog(const std::string& sclText)
 		.arg((int)out.table.doRefs.size()).arg((int)out.table.aoRefs.size())
 		.arg((int)out.table.sgRefs.size())
 		.arg(QString::fromUtf8(out.detectedIed.c_str())));
+	if (out.loaderOk)
+		log(tr("Semantic check: DataSet=%1 Report=%2 GSE=%3 SV=%4 Log=%5 Setting=%6, GSE地址=%7 SMV地址=%8")
+			.arg(out.datasetCount).arg(out.reportControlCount).arg(out.gseControlCount)
+			.arg(out.sampledValueControlCount).arg(out.logControlCount).arg(out.settingControlCount)
+			.arg(out.gseAddressCount).arg(out.smvAddressCount));
 	if (out.sgQuirk)
 		log(tr("Note: loader reported SG contains an invalid point (known loader quirk, ucType=2 rejected by ValidateRefs); point table still parsed"));
 	else if (!out.loaderOk)
 		log(tr("Loader check failed: %1").arg(QString::fromUtf8(out.errorText.c_str())));
 	else
 		log(tr("Loader check passed"));
+	for (size_t i = 0; i < out.semanticErrors.size(); ++i)
+		log(tr("Semantic warning: %1").arg(QString::fromUtf8(out.semanticErrors[i].c_str())));
 }
 
 void MainWindow::onNewModel()
