@@ -192,7 +192,7 @@ static int RunOnline(const char* ip, int port, const char* ied)
 // 界面文案源码为英文，中文经 translate/ieddesigner_zh_CN.qm 加载
 static void SetupTranslation(QCoreApplication& app, QTranslator& translator)
 {
-	// 第三期任务 6：语言偏好（缺省中文；English 时不加载翻译，界面回退英文源文）
+	// 语言设置
 	{
 		QSettings settings("newfert", "ieddesigner");
 		if (settings.value("language", "zh").toString() == "en")
@@ -203,19 +203,18 @@ static void SetupTranslation(QCoreApplication& app, QTranslator& translator)
 	dirs << appDir << appDir + "/.." << QDir::currentPath();
 	for (const QString& dir : dirs)
 	{
-		// 在 <dir>/translate/ 下查找 ieddesigner_zh_CN.qm（外部文件优先，便于替换/扩展）
 		if (translator.load(QString("ieddesigner_zh_CN"), dir + "/translate", QString("_")))
 		{
 			app.installTranslator(&translator);
 			return;
 		}
 	}
-	// 回退：使用编译进资源（qrc）的翻译，部署无需拷贝
+	// 回退：使用编译进资源的翻译
 	if (translator.load(QString("ieddesigner_zh_CN"), QString(":/i18n"), QString("_")))
 		app.installTranslator(&translator);
 }
 
-// --autopen：创建真实主窗口并定时触发打开流程（配合 cdb 抓闪退栈）
+// --autopen：创建真实主窗口并定时触发打开流程 自动化测试使用
 static int RunAutoOpen(const char* filePath)
 {
 	int argc = 1;
@@ -417,7 +416,7 @@ static int RunSkeleton(const char* outPath)
 {
 	SclModel model = MakeNewModel();
 
-	// 设置 DAI 值（覆盖点分路径 Struct 展开），验证 DAI 读写链路
+	// 设置DAI值 验证DAI读写链路
 	SclLDevice& ld = model.ied.lds[0];
 	for (size_t i = 0; i < ld.ln0.dos.size(); ++i)
 	{
@@ -625,99 +624,37 @@ static int RunSkeleton(const char* outPath)
 	return (v.refsParsed && diff == 0) ? 0 : 1;
 }
 
-// 精密仪器主题：全局 QSS（纯样式，无逻辑影响；仅 GUI 启动路径调用）
-// 令牌与 docs/ui-prototype-v1.html 保持一致
+// 界面主题：加载独立 QSS 文件（应用级，所有窗口含对话框统一生效）
+// 查找顺序：exe 目录 → 上级目录（MSVC 构建 Debug/Release 布局）→ qrc 内置兜底。
+// 修改 theme.qss 后重启程序即可生效，无需重新编译。
 static void ApplyTheme(QApplication& app)
 {
 	app.setStyle("Fusion");
-	app.setStyleSheet(
-		"QWidget { background: #DEE4EC; color: #131C29;"
-		"  font-family: \"Segoe UI\",\"Microsoft YaHei UI\",\"Microsoft YaHei\"; font-size: 9pt; }"
-		"QMainWindow::separator { background: #B0BDCD; width: 2px; height: 2px; }"
-
-		"QMenuBar { background: #FFFFFF; border-bottom: 1px solid #C8D2DE; }"
-		"QMenuBar::item { padding: 4px 10px; background: transparent; color: #49596D; }"
-		"QMenuBar::item:selected { background: #EEF1F6; color: #131C29; }"
-		"QMenu { background: #FFFFFF; border: 1px solid #B0BDCD; padding: 4px 0px; }"
-		"QMenu::item { padding: 5px 26px 5px 14px; color: #131C29; }"
-		"QMenu::item:selected { background: #D9E4F8; }"
-		"QMenu::separator { height: 1px; background: #C8D2DE; margin: 4px 8px; }"
-
-		"QToolBar { background: #FFFFFF; border: none; border-bottom: 1px solid #C8D2DE;"
-		"  padding: 2px 6px; spacing: 2px; }"
-		"QToolButton { background: transparent; border: 1px solid transparent; border-radius: 5px;"
-		"  padding: 3px 8px; color: #49596D; }"
-		"QToolButton:hover { background: #EEF1F6; border-color: #C8D2DE; color: #131C29; }"
-		"QToolButton:pressed, QToolButton:checked { background: #D9E4F8; color: #131C29; }"
-
-		"QPushButton { background: #FFFFFF; border: 1px solid #B0BDCD; border-radius: 5px;"
-		"  padding: 4px 14px; min-height: 20px; color: #131C29; }"
-		"QPushButton:hover { background: #EEF1F6; }"
-		"QPushButton:pressed { background: #D9E4F8; }"
-		"QPushButton:disabled { color: #7D8B9D; background: #EEF1F6; }"
-		"QPushButton:default { background: #1B54BE; border: 1px solid #143E8C; color: #FFFFFF; font-weight: 600; }"
-		"QPushButton:default:hover { background: #143E8C; }"
-
-		"QLineEdit, QComboBox, QSpinBox { background: #FFFFFF; border: 1px solid #B0BDCD; border-radius: 4px;"
-		"  padding: 3px 8px; min-height: 20px; color: #131C29; selection-background-color: #1B54BE; selection-color: #FFFFFF; }"
-		"QLineEdit:focus, QComboBox:focus, QSpinBox:focus { border: 1px solid #1B54BE; }"
-		"QLineEdit:disabled, QComboBox:disabled { background: #EEF1F6; color: #7D8B9D; }"
-		"QLineEdit:read-only { background: #EEF1F6; color: #49596D; }"
-		"QComboBox QAbstractItemView { background: #FFFFFF; border: 1px solid #B0BDCD;"
-		"  selection-background-color: #D9E4F8; selection-color: #131C29; }"
-
-		"QGroupBox { background: #FFFFFF; border: 1px solid #C8D2DE; border-radius: 6px;"
-		"  margin-top: 14px; padding-top: 6px; }"
-		"QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px;"
-		"  padding: 0 4px; color: #49596D; font-weight: 600; background: #DEE4EC; }"
-
-		"QDialog { background: #DEE4EC; }"
-		"QMessageBox { background: #FFFFFF; }"
-
-		"QTreeWidget, QTreeView { background: #EEF1F6; border: 1px solid #C8D2DE; }"
-		"QTreeView::item { height: 26px; border-left: 2px solid transparent; }"
-		"QTreeView::item:hover { background: #E4EAF2; }"
-		"QTreeView::item:selected { background: #D9E4F8; color: #131C29; border-left: 2px solid #1B54BE; }"
-
-		"QHeaderView { background: #FFFFFF; border: none; }"
-		"QHeaderView::section { background: #FFFFFF; color: #49596D; border: none;"
-		"  border-right: 1px solid #C8D2DE; border-bottom: 1px solid #B0BDCD; padding: 5px 8px; font-weight: 600; }"
-
-		"QPlainTextEdit, QTextEdit { background: #FFFFFF; border: 1px solid #C8D2DE; border-radius: 4px;"
-		"  font-family: \"Consolas\",\"Cascadia Mono\"; font-size: 9pt; color: #49596D;"
-		"  selection-background-color: #1B54BE; selection-color: #FFFFFF; }"
-		"QPlainTextEdit:focus { border: 1px solid #1B54BE; }"
-
-		"QDockWidget::title { background: #FFFFFF; border-bottom: 1px solid #C8D2DE;"
-		"  padding: 6px 12px; color: #131C29; font-weight: 600; }"
-
-		"QStatusBar { background: #FFFFFF; border-top: 1px solid #C8D2DE; color: #49596D; }"
-		"QStatusBar::item { border: none; }"
-
-		"QToolTip { background: #FFFFFF; color: #131C29; border: 1px solid #B0BDCD; padding: 4px 8px; }"
-
-		"QScrollBar:vertical { background: transparent; width: 10px; margin: 2px; }"
-		"QScrollBar::handle:vertical { background: #B0BDCD; border-radius: 4px; min-height: 28px; }"
-		"QScrollBar::handle:vertical:hover { background: #96A5B8; }"
-		"QScrollBar:horizontal { background: transparent; height: 10px; margin: 2px; }"
-		"QScrollBar::handle:horizontal { background: #B0BDCD; border-radius: 4px; min-width: 28px; }"
-		"QScrollBar::handle:horizontal:hover { background: #96A5B8; }"
-		"QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }"
-		"QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }"
-
-		"QListWidget, QTableWidget { background: #FFFFFF; border: 1px solid #C8D2DE; }"
-		"QListWidget::item { padding: 4px 6px; border-radius: 4px; }"
-		"QListWidget::item:selected { background: #D9E4F8; color: #131C29; }"
-		"QTableWidget::item { padding: 3px 6px; }"
-		"QTabWidget::pane { border: 1px solid #C8D2DE; border-radius: 4px; background: #FFFFFF; }"
-		"QTabBar::tab { background: #EEF1F6; color: #49596D; padding: 5px 14px;"
-		"  border: 1px solid #C8D2DE; border-bottom: none; border-top-left-radius: 4px; border-top-right-radius: 4px; }"
-		"QTabBar::tab:selected { background: #FFFFFF; color: #131C29; border-bottom: 2px solid #1B54BE; }"
-	);
+	QString qss;
+	const QStringList candidates = {
+		QCoreApplication::applicationDirPath() + "/theme.qss",
+		QCoreApplication::applicationDirPath() + "/../theme.qss"
+	};
+	for (const QString& p : candidates)
+	{
+		QFile f(p);
+		if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+		{
+			qss = QString::fromUtf8(f.readAll());
+			break;
+		}
+	}
+	if (qss.isEmpty())
+	{
+		QFile f(":/ui/theme.qss");
+		if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+			qss = QString::fromUtf8(f.readAll());
+	}
+	app.setStyleSheet(qss);
 }
 
-// --xsd：对指定 SCL 文件执行 XSD 校验（第三期任务 4 CLI 自检）
-// 返回码：0=通过，1=流程错误，2=存在违规
+// --xsd：对指定 SCL 文件执行 XSD 校验
+// @return 0=通过，1=流程错误，2=存在违规
 static int RunXsd(const char* filePath)
 {
 	int argc = 1;
@@ -726,8 +663,7 @@ static int RunXsd(const char* filePath)
 	QCoreApplication app(argc, argv);
 
 	FILE* f = fopen(filePath, "rb");
-	if (!f)
-	{
+	if (!f) {
 		printf("XSD FAIL open file: %s\n", filePath);
 		return 1;
 	}
@@ -739,21 +675,18 @@ static int RunXsd(const char* filePath)
 	fclose(f);
 
 	std::string dir = XsdValidator::EnsureSchemasExtracted();
-	if (dir.empty())
-	{
+	if (dir.empty()) {
 		printf("XSD FAIL extract schemas\n");
 		return 1;
 	}
 
 	std::vector<XsdValidator::XsdError> errors;
 	std::string errText;
-	if (!XsdValidator::Validate(text, dir, errors, errText))
-	{
+	if (!XsdValidator::Validate(text, dir, errors, errText)) {
 		printf("XSD FAIL: %s\n", errText.c_str());
 		return 1;
 	}
-	if (errors.empty())
-	{
+	if (errors.empty()) {
 		printf("XSD PASS: no schema violations\n");
 		return 0;
 	}
@@ -765,6 +698,7 @@ static int RunXsd(const char* filePath)
 
 int main(int argc, char** argv)
 {
+	// xsd文件检查
 	if (argc >= 3 && strcmp(argv[1], "--xsd") == 0)
 		return RunXsd(argv[2]);
 	if (argc >= 4 && strcmp(argv[1], "--selftest") == 0)

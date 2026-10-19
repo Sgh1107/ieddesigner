@@ -12,40 +12,187 @@
     font-size: 11pt;
 }
 
-/* ---------- 属性面板（精密仪器风：白面板 + 发丝线输入框 + 信号蓝焦点环） ---------- */
-#propScroll, #propPanel { background: #FFFFFF; }
-#propPanel QLabel {
-    color: #3D4A5C;
-    background: transparent;
-    font-size: 10pt;
+/* ============================================================
+   全局基础层（原 main.cpp ApplyTheme 迁入；后文各段按需覆盖）
+   ============================================================ */
+QWidget {
+    background: #DEE4EC;
+    color: #131C29;
+    font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei";
 }
-#propPanel QLineEdit {
-    border: 1px solid #A9B7C8;
+QMainWindow::separator { background: #B0BDCD; width: 2px; height: 2px; }
+QMenuBar { background: #FFFFFF; border-bottom: 1px solid #C8D2DE; }
+QMenuBar::item { padding: 4px 10px; background: transparent; color: #49596D; }
+QMenuBar::item:selected { background: #EEF1F6; color: #131C29; }
+QMenu { background: #FFFFFF; border: 1px solid #B0BDCD; padding: 4px 0px; }
+QMenu::item { padding: 5px 26px 5px 14px; color: #131C29; }
+QMenu::item:selected { background: #D9E4F8; }
+QMenu::separator { height: 1px; background: #C8D2DE; margin: 4px 8px; }
+QToolBar {
+    background: #FFFFFF;
+    border: none;
+    border-bottom: 1px solid #C8D2DE;
+    padding: 2px 6px;
+    spacing: 2px;
+}
+QToolButton {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 3px 8px;
+    color: #49596D;
+}
+QToolButton:hover { background: #EEF1F6; border-color: #C8D2DE; color: #131C29; }
+QToolButton:pressed, QToolButton:checked { background: #D9E4F8; color: #131C29; }
+QPushButton {
+    background: #FFFFFF;
+    border: 1px solid #B0BDCD;
+    border-radius: 5px;
+    padding: 4px 14px;
+    min-height: 20px;
+    color: #131C29;
+}
+QPushButton:hover { background: #EEF1F6; }
+QPushButton:pressed { background: #D9E4F8; }
+QPushButton:disabled { color: #7D8B9D; background: #EEF1F6; }
+QPushButton:default { background: #1B54BE; border: 1px solid #143E8C; color: #FFFFFF; font-weight: 600; }
+QPushButton:default:hover { background: #143E8C; }
+QLineEdit, QComboBox, QSpinBox {
+    background: #FFFFFF;
+    border: 1px solid #B0BDCD;
     border-radius: 4px;
     padding: 3px 8px;
-    min-height: 22px;
-    background: #FFFFFF;
-    color: #000000;
-    font-weight: 600;
+    min-height: 20px;
+    color: #131C29;
     selection-background-color: #1B54BE;
     selection-color: #FFFFFF;
 }
-#propPanel QLineEdit:focus { border: 1px solid #1B54BE; }
-#propPanel QLineEdit:read-only {
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus { border: 1px solid #1B54BE; }
+QLineEdit:disabled, QComboBox:disabled { background: #EEF1F6; color: #7D8B9D; }
+QLineEdit:read-only { background: #EEF1F6; color: #49596D; }
+QComboBox QAbstractItemView {
+    background: #FFFFFF;
+    border: 1px solid #B0BDCD;
+    selection-background-color: #D9E4F8;
+    selection-color: #131C29;
+}
+QGroupBox {
+    background: #FFFFFF;
+    border: 1px solid #C8D2DE;
+    border-radius: 6px;
+    margin-top: 14px;
+    padding-top: 6px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 10px;
+    padding: 0 4px;
+    color: #49596D;
+    font-weight: 600;
+    background: #DEE4EC;
+}
+QDialog { background: #DEE4EC; }
+QMessageBox { background: #FFFFFF; }
+QHeaderView { background: #FFFFFF; border: none; }
+QPlainTextEdit, QTextEdit {
+    border: 1px solid #C8D2DE;
+    border-radius: 4px;
+    font-family: "Consolas", "Cascadia Mono";
+    selection-background-color: #1B54BE;
+    selection-color: #FFFFFF;
+}
+QPlainTextEdit:focus { border: 1px solid #1B54BE; }
+QDockWidget::title {
+    background: #FFFFFF;
+    border-bottom: 1px solid #C8D2DE;
+    padding: 6px 12px;
+    color: #131C29;
+    font-weight: 600;
+}
+QStatusBar { background: #FFFFFF; border-top: 1px solid #C8D2DE; color: #49596D; }
+QStatusBar::item { border: none; }
+QToolTip { background: #FFFFFF; color: #131C29; border: 1px solid #B0BDCD; padding: 4px 8px; }
+QScrollBar:vertical { background: transparent; width: 10px; margin: 2px; }
+QScrollBar::handle:vertical { background: #B0BDCD; border-radius: 4px; min-height: 28px; }
+QScrollBar::handle:vertical:hover { background: #96A5B8; }
+QScrollBar:horizontal { background: transparent; height: 10px; margin: 2px; }
+QScrollBar::handle:horizontal { background: #B0BDCD; border-radius: 4px; min-width: 28px; }
+QScrollBar::handle:horizontal:hover { background: #96A5B8; }
+QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
+QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
+QListWidget, QTableWidget { background: #FFFFFF; border: 1px solid #C8D2DE; }
+QListWidget::item { padding: 4px 6px; border-radius: 4px; }
+QListWidget::item:selected { background: #D9E4F8; color: #131C29; }
+QTableWidget::item { padding: 3px 6px; }
+QTabWidget::pane { border: 1px solid #C8D2DE; border-radius: 4px; background: #FFFFFF; }
+QTabBar::tab {
     background: #EEF1F6;
     color: #49596D;
-    border-color: #C8D2DE;
+    padding: 5px 14px;
+    border: 1px solid #C8D2DE;
+    border-bottom: none;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}
+QTabBar::tab:selected { background: #FFFFFF; color: #131C29; border-bottom: 2px solid #1B54BE; }
+
+/* ---------- 属性面板（精密仪器风：白面板 + 发丝线输入框 + 信号蓝焦点环） ---------- */
+#propScroll, #propScroll > QWidget > QWidget, #propScroll QWidget#qt_scrollarea_viewport,
+#propPanel { background: #F7F9FC; }
+
+/* 面板标题栏：与面板同一浅色面，标题文字加深、底线更浅 */
+#propDock::title {
+    background: #F7F9FC;
+    color: #1E2938;
+    border-bottom: 1px solid #E2E8F0;
+    font-weight: 600;
+}
+
+/* 行容器与面板尾部弹簧：清掉全局 QWidget 的灰底（#DEE4EC），
+   否则标签列会透出一条灰带、面板底部会留下一大块灰色空白 */
+#propPanel > QWidget { background: transparent; }
+
+/* 字段标签：中性石板蓝，字重适中 */
+#propPanel QLabel {
+    background: transparent;
+    color: #45566C;
+    font-size: 10pt;
+    font-weight: 500;
+}
+
+/* 普通输入框：白底 + 浅发丝线 + 深石板文字（不再用纯黑加粗） */
+#propPanel QLineEdit {
+    border: 1px solid #D6DEE9;
+    border-radius: 5px;
+    padding: 2px 8px;
+    min-height: 22px;
+    background: #FFFFFF;
+    color: #1D2A3B;
+    font-weight: 500;
+    selection-background-color: #1B54BE;
+    selection-color: #FFFFFF;
+}
+#propPanel QLineEdit:hover { border-color: #BCC9DA; }
+#propPanel QLineEdit:focus { border: 1px solid #1B54BE; }
+#propPanel QLineEdit:read-only {
+    background: #F3F6FA;
+    color: #6E7C90;
+    border-color: #E3E9F1;
     font-weight: 400;
 }
+
+/* 下拉框 */
 #propPanel QComboBox {
-    border: 1px solid #A9B7C8;
-    border-radius: 4px;
+    border: 1px solid #D6DEE9;
+    border-radius: 5px;
     padding: 3px 26px 3px 8px;
     min-height: 22px;
     background: #FFFFFF;
-    color: #000000;
-    font-weight: 600;
+    color: #1D2A3B;
+    font-weight: 500;
 }
+#propPanel QComboBox:hover { border-color: #BCC9DA; }
 #propPanel QComboBox:focus { border: 1px solid #1B54BE; }
 #propPanel QComboBox::drop-down {
     subcontrol-origin: padding;
@@ -59,6 +206,19 @@
     width: 12px;
     height: 12px;
 }
+#propPanel QComboBox QAbstractItemView {
+    background: #FFFFFF;
+    border: 1px solid #C8D2DE;
+    selection-background-color: #D9E4F8;
+    selection-color: #131C29;
+    outline: none;
+}
+
+#propPanel QTableWidget {
+    background-color: #FFFFFF;
+    gridline-color: #E6EBF1;
+    border: none;
+}
 
 /* ---------- 日志窗格 ---------- */
 QPlainTextEdit {
@@ -68,9 +228,9 @@ QPlainTextEdit {
 }
 
 /* ---------- 属性面板滚动条 ---------- */
-#propScroll QScrollBar:vertical { background: transparent; width: 8px; margin: 0; }
-#propScroll QScrollBar::handle:vertical { background: #B0BDCD; border-radius: 4px; min-height: 30px; }
-#propScroll QScrollBar::handle:vertical:hover { background: #96A5B8; }
+#propScroll QScrollBar:vertical { background: transparent; width: 10px; margin: 2px; }
+#propScroll QScrollBar::handle:vertical { background: #C6D0DC; border-radius: 5px; min-height: 30px; }
+#propScroll QScrollBar::handle:vertical:hover { background: #A9B6C6; }
 #propScroll QScrollBar::add-line, #propScroll QScrollBar::sub-line { width: 0; height: 0; }
 #propScroll QScrollBar::add-page, #propScroll QScrollBar::sub-page { background: transparent; }
 

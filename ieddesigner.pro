@@ -43,8 +43,12 @@ win32-g++ {
 	CONFIG(debug, debug|release): LIBPATH += $$PWD/../libiec61850-msvc/Debug
 	else: LIBPATH += $$PWD/../libiec61850-msvc/Release
 	LIBS += iec61850.lib hal.lib ws2_32.lib
-	LIBPATH += $$PWD/../libxml2-2.12.9-install-msvc/lib
-	LIBS += libxml2s.lib
+	# libxml2 静态库按 CRT 配套选择：Debug(/MDd → libxml2sd) / Release(/MD → libxml2s)，
+	# 否则 CRT 运行库混用触发 LNK4098 警告
+	CONFIG(debug, debug|release): LIBPATH += $$PWD/../libxml2-2.12.9-install-msvc-debug/lib
+	else: LIBPATH += $$PWD/../libxml2-2.12.9-install-msvc/lib
+	CONFIG(debug, debug|release): LIBS += libxml2sd.lib
+	else: LIBS += libxml2s.lib
 	DEFINES += LIBXML_STATIC
 }
 

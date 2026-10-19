@@ -63,6 +63,11 @@ static QString boolText(bool v)
 #include <map>
 #include <cctype>
 
+// 模型树：重写 edit() 在进入委托前按列/节点类型过滤，
+// 不可编辑单元格直接返回 false（Qt 随后走展开等默认双击行为），
+// 避免让 delegate 的 createEditor 返回空编辑器
+
+
 // 详细列就地编辑委托：仅对"详细列 = 单一值"的节点类型开放编辑
 // （通信参数值 / IED 名称 / DAI 值）；复合摘要节点保持只读。
 // DAI 的详细文本是 "bType/fc = 值" 复合格式，编辑器只放值，提交也只取值。
@@ -113,6 +118,24 @@ public:
 	{
 		QStyledItemDelegate::setModelData(editor, model, index);
 		// 提交后把新文本路由给主窗口（经 itemChanged 信号 → applyDetailEdit）
+	}
+};
+
+class TreeWidget : public QTreeWidget
+{
+public:
+	explicit TreeWidget(QWidget* parent = 0)
+		: QTreeWidget(parent) {}
+
+protected:
+	bool edit(const QModelIndex& index, EditTrigger trigger, QEvent* event) override
+	{
+		if (index.column() != 1)
+			return false;   // 仅详细列可编辑
+		const QString path = index.sibling(index.row(), 0).data(Qt::UserRole).toString();
+		if (!TreeDetailDelegate::editableKind(path.split(':').value(0)))
+			return false;
+		return QTreeWidget::edit(index, trigger, event);
 	}
 };
 
@@ -259,7 +282,7 @@ MainWindow::MainWindow(QWidget* parent)
 	setWindowIcon(QIcon(":/icons/app.png"));
 	resize(1100, 700);
 
-	m_tree = new QTreeWidget(this);
+	m_tree = new TreeWidget(this);
 	m_tree->setColumnCount(2);
 	m_tree->setHeaderLabels(QStringList() << tr("Title") << tr("Detail"));
 	m_tree->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -298,40 +321,16 @@ MainWindow::MainWindow(QWidget* parent)
 
 	connect(m_tree, SIGNAL(itemSelectionChanged()), this, SLOT(onTreeSelectionChanged()));
 	connect(m_tree, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onTreeContextMenu(const QPoint&)));
-	// 详细列就地编辑（双击）：委托控制可编辑类型，itemChanged 统一路由到属性行校验
+	// 详细列就地编辑（双击）：TreeWidget::edit 按列/类型过滤，
+	// 委托控制可编辑类型，itemChanged 统一路由到属性行校验
 	m_detailDelegate = new TreeDetailDelegate(m_tree);
 	m_tree->setItemDelegate(m_detailDelegate);
-	m_tree->setEditTriggers(QAbstractItemView::DoubleClicked);
+	// [排查中] 双击编辑触发器与展开渲染存在交互崩溃，暂禁用，见 README 已知问题
+	// m_tree->setEditTriggers(QAbstractItemView::DoubleClicked);
 	connect(m_tree, SIGNAL(itemChanged(QTreeWidgetItem*, int)), this, SLOT(onTreeItemChanged(QTreeWidgetItem*, int)));
 
-	// 界面样式：优先加载 exe 目录的 theme.qss（改完重启即生效，无需重编译），
-	// 其次上级目录（MSVC 构建 Debug/Release 布局），都没有则用编译内置兜底版本。
-	// 注意：QSS 生效后 QApplication::setFont 对控件不再起作用，全局字号
-	// 统一在 theme.qss 的 * { font-size } 处调整。
-	{
-		QString qss;
-		const QStringList candidates = {
-			QCoreApplication::applicationDirPath() + "/theme.qss",
-			QCoreApplication::applicationDirPath() + "/../theme.qss"
-		};
-		for (const QString& p : candidates)
-		{
-			QFile f(p);
-			if (f.open(QIODevice::ReadOnly | QIODevice::Text))
-			{
-				qss = QString::fromUtf8(f.readAll());
-				break;
-			}
-		}
-		if (qss.isEmpty())
-		{
-			QFile f(":/ui/theme.qss");
-			if (f.open(QIODevice::ReadOnly | QIODevice::Text))
-				qss = QString::fromUtf8(f.readAll());
-		}
-		setStyleSheet(qss);
-	}
-
+	// 界面样式由 main.cpp 的 ApplyTheme 以应用级加载 theme.qss（含对话框等所有窗口），
+	// 此处不再重复设置，避免两套样式级联冲突。
 	m_model = MakeNewModel();
 	buildTree();
 	// 窗口布局（几何 + 停靠窗格状态）
@@ -696,42 +695,26 @@ void MainWindow::buildTree()
 			detail, QString("ap:%1").arg((int)(a + 1)));
 	}
 
-	// DO 下挂 DA/BDA 层级节点（specs 前序遍历序：Struct 节点先于其子项，
-	// 按 path 前缀挂父；Struct 中间节点 detail 显示 Struct，叶子显示 bType/fc[ = 值]）
+	// DO 下挂 DAI 子节点（点分路径；specs 已补全文件自定义 Struct 的 BDA 成员，
+	// origin/ctlNum/Check 等均会显示；层级化展示因渲染期堆损坏暂缓，见 README 已知问题）
 	auto addDaiNodes = [this](QTreeWidgetItem* doItem, int li, int ni, int di, const SclDo& dobj) {
 		std::vector<SclDaiSpec> specs = daiSpecsFor(dobj);
-		std::map<std::string, QTreeWidgetItem*> nodeByPath;   // spec path -> 树节点
 		for (size_t k = 0; k < specs.size(); ++k)
 		{
-			const SclDaiSpec& sp = specs[k];
-			if (sp.path == "d")
+			if (specs[k].path == "d")
 				continue;   // 描述节点走 DOI 描述字段，不在树上展开
-			std::string name = sp.path;
-			std::string parentPath;
-			size_t dot = sp.path.rfind('.');
-			if (dot != std::string::npos)
-			{
-				parentPath = sp.path.substr(0, dot);
-				name = sp.path.substr(dot + 1);
-			}
-			QTreeWidgetItem* parentItem = doItem;
-			std::map<std::string, QTreeWidgetItem*>::iterator pit = nodeByPath.find(parentPath);
-			if (dot != std::string::npos && pit != nodeByPath.end())
-				parentItem = pit->second;
-
 			QString detail;
-			if (sp.bType == "Struct")
+			if (specs[k].bType == "Struct")
 				detail = tr("Struct");
 			else
 			{
-				detail = QString::fromUtf8(sp.bType.c_str()) + "/" + QString::fromUtf8(sp.fc.c_str());
-				const std::string* val = dobj.FindDaiVal(sp.path);
+				detail = QString::fromUtf8(specs[k].bType.c_str()) + "/" + QString::fromUtf8(specs[k].fc.c_str());
+				const std::string* val = dobj.FindDaiVal(specs[k].path);
 				if (val)
 					detail += " = " + QString::fromUtf8(val->c_str());
 			}
-			QTreeWidgetItem* item = addNode(parentItem, tr("DAI ") + QString::fromUtf8(name.c_str()),
-				detail, QString("dai:%1:%2:%3:%4").arg(li).arg(ni).arg(di).arg((int)k));
-			nodeByPath[sp.path] = item;
+			addNode(doItem, tr("DAI ") + QString::fromUtf8(specs[k].path.c_str()), detail,
+				QString("dai:%1:%2:%3:%4").arg(li).arg(ni).arg(di).arg((int)k));
 		}
 	};
 
