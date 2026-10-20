@@ -45,6 +45,7 @@ static QString boolText(bool v)
 #include <QClipboard>
 #include <QApplication>
 #include <QComboBox>
+#include <QStandardItemModel>
 #include <QFont>
 #include <QIcon>
 #include <QBrush>
@@ -2706,7 +2707,7 @@ void MainWindow::addAccessPoint()
 	}
 	SclAccessPoint ap;
 	ap.name = name;
-	ap.serverAt = serverAtCombo->currentData().toString().toUtf8().constData();
+	ap.serverAt = qobject_cast<const QStandardItemModel*>(serverAtCombo->model())->item(serverAtCombo->currentIndex(), 0)->data().toString().toUtf8().constData();
 	m_model.ied.extraAps.push_back(ap);
 	buildTree();
 	log(tr("Add access point %1%2").arg(QString::fromUtf8(name.c_str()))
@@ -5030,7 +5031,7 @@ void MainWindow::addDo(int li, int ni)
 	while (dlg.exec() == QDialog::Accepted)
 	{
 		std::string name = nameEdit->text().toUtf8().constData();
-		std::string cdc = cdcCombo->currentData().toString().toUtf8().constData();
+		std::string cdc = qobject_cast<const QStandardItemModel*>(cdcCombo->model())->item(cdcCombo->currentIndex(), 0)->data().toString().toUtf8().constData();
 		if (!validIdent(name))
 		{
 			QMessageBox::warning(&dlg, tr("Validation failed"), tr("DO name must be 1-64 chars, start with a letter, letters/digits/underscore only"));

@@ -318,7 +318,7 @@ static int RunAutoOpen(const char* filePath)
 		}
 		if (!didRaise3 && e >= 3500) { w.raise(); w.activateWindow(); didRaise3 = true; }
 		QCoreApplication::processEvents();
-		QThread::msleep(5);
+		Sleep(5);   // Qt4: QThread::msleep is protected here
 	}
 	return 0;
 }
@@ -449,7 +449,7 @@ static int RunOpenTest(const char* filePath)
 	for (int i = 0; i < 20; ++i)
 	{
 		QCoreApplication::processEvents();
-		QThread::msleep(5);
+		Sleep(5);   // Qt4: QThread::msleep is protected here
 	}
 	printf("OPENTEST tree nodes=%d PASS\n", tree.topLevelItemCount());
 	return 0;
