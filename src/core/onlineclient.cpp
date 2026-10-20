@@ -214,7 +214,9 @@ namespace OnlineClient
 					std::string lnRef = ldName + "/" + lnName;
 
 					IedClientError doErr = IED_ERROR_OK;
-					LinkedList doList = IedConnection_getDataDirectoryFC(conn, &doErr, lnRef.c_str());
+					// 列 LN 下的 DO 必须用 getLogicalNodeDirectory（引用到 LN 级）；
+					// getDataDirectoryFC 要求引用带 .DO 部分（DO 级及以上），对 LN 级引用会报 OBJECT_REFERENCE_INVALID
+					LinkedList doList = IedConnection_getLogicalNodeDirectory(conn, &doErr, lnRef.c_str(), ACSI_CLASS_DATA_OBJECT);
 					std::vector<std::string> doNames;
 					std::set<std::string> unique;
 					if (doErr == IED_ERROR_OK && doList != NULL)

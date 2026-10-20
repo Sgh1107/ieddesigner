@@ -2,6 +2,7 @@
 #include <QString>
 #include <QTranslator>
 #include <QCoreApplication>
+#include <QSettings>
 #include <QTreeWidget>
 #include <QGridLayout>
 #include <QtConcurrent>
@@ -14,6 +15,7 @@
 
 #include "mainwindow.h"
 #include "sclmodel.h"
+#include "scltemplates.h"
 #include "sclwriter.h"
 #include "sclreader.h"
 #include "jsonmodel.h"
@@ -21,6 +23,10 @@
 #include "onlineclient.h"
 #include "csvwriter.h"
 #include "modelvalidate.h"
+#include "xsdvalidator.h"
+
+// 第三期任务 3：打印 loader 侧数据集/控制块语义校验结果
+static void PrintSemantics(const char* tag, const ValidateOutcome& v);
 
 static int RunSelfTest(const char* icdPath, const char* csvPath)
 {
@@ -46,9 +52,10 @@ static int RunSelfTest(const char* icdPath, const char* csvPath)
 		(int)out.table.sgRefs.size());
 	printf("SELFTEST loaderOk=%d sgQuirk=%d err=%s\n",
 		out.loaderOk ? 1 : 0, out.sgQuirk ? 1 : 0, out.errorText.c_str());
+	PrintSemantics("SELFTEST", out);
 	printf("SELFTEST csv=%s\n", csvOk ? "ok" : err.c_str());
 	remove(temp.c_str());
-	return (out.refsParsed && csvOk) ? 0 : 1;
+	return (out.refsParsed && out.sgPoints > 0 && csvOk) ? 0 : 1;
 }
 
 static int RunRoundTrip(const char* srcPath)
@@ -91,14 +98,44 @@ static int RunRoundTrip(const char* srcPath)
 		(int)rt.table.sgRefs.size(), rt.loaderOk ? 1 : 0);
 	printf("ROUNDTRIP reread=%d lds=%d err=%s\n",
 		rereadOk ? 1 : 0, (int)reloaded.ied.lds.size(), err.c_str());
+	PrintSemantics("ROUNDTRIP orig", orig);
+	PrintSemantics("ROUNDTRIP rt", rt);
+
+	// ExtRef 外部引用计数比对（第三期任务 1 回归）
+	int extSrc = 0, extDst = 0;
+	for (size_t i = 0; i < model.ied.lds.size(); ++i)
+	{
+		extSrc += (int)model.ied.lds[i].ln0.extRefs.size();
+		for (size_t n = 0; n < model.ied.lds[i].lns.size(); ++n)
+			extSrc += (int)model.ied.lds[i].lns[n].extRefs.size();
+	}
+	for (size_t i = 0; i < reloaded.ied.lds.size(); ++i)
+	{
+		extDst += (int)reloaded.ied.lds[i].ln0.extRefs.size();
+		for (size_t n = 0; n < reloaded.ied.lds[i].lns.size(); ++n)
+			extDst += (int)reloaded.ied.lds[i].lns[n].extRefs.size();
+	}
+	printf("ROUNDTRIP extRefs=%d->%d\n", extSrc, extDst);
 
 	bool same = orig.table.diRefs.size() == rt.table.diRefs.size() &&
 		orig.table.aiRefs.size() == rt.table.aiRefs.size() &&
 		orig.table.doRefs.size() == rt.table.doRefs.size() &&
 		orig.table.aoRefs.size() == rt.table.aoRefs.size() &&
-		orig.table.sgRefs.size() == rt.table.sgRefs.size();
+		orig.table.sgRefs.size() == rt.table.sgRefs.size() &&
+		extSrc == extDst;
 	printf("ROUNDTRIP same=%d\n", same ? 1 : 0);
 	return (same && rereadOk && orig.refsParsed) ? 0 : 1;
+}
+
+// 第三期任务 3：打印 loader 侧数据集/控制块语义校验结果
+static void PrintSemantics(const char* tag, const ValidateOutcome& v)
+{
+	printf("%s semantics ds=%d report=%d gse=%d sv=%d log=%d setting=%d gseAddr=%d smvAddr=%d errors=%d\n",
+		tag, v.datasetCount, v.reportControlCount, v.gseControlCount,
+		v.sampledValueControlCount, v.logControlCount, v.settingControlCount,
+		v.gseAddressCount, v.smvAddressCount, (int)v.semanticErrors.size());
+	for (size_t i = 0; i < v.semanticErrors.size(); ++i)
+		printf("%s semantic warning: %s\n", tag, v.semanticErrors[i].c_str());
 }
 
 static void PrintModelStats(const char* tag, const SclModel& model, const ValidateOutcome& v)
@@ -119,6 +156,7 @@ static void PrintModelStats(const char* tag, const SclModel& model, const Valida
 		(int)v.table.diRefs.size(), (int)v.table.aiRefs.size(),
 		(int)v.table.doRefs.size(), (int)v.table.aoRefs.size(),
 		(int)v.table.sgRefs.size(), v.loaderOk ? 1 : 0);
+	PrintSemantics(tag, v);
 }
 
 static int RunJsonImport(const char* jsonPath)
@@ -173,24 +211,29 @@ static int RunOnline(const char* ip, int port, const char* ied)
 // 界面文案源码为英文，中文经 translate/ieddesigner_zh_CN.qm 加载
 static void SetupTranslation(QCoreApplication& app, QTranslator& translator)
 {
+	// 语言设置
+	{
+		QSettings settings("newfert", "ieddesigner");
+		if (settings.value("language", "zh").toString() == "en")
+			return;
+	}
 	QString appDir = QCoreApplication::applicationDirPath();
 	QStringList dirs;
 	dirs << appDir << appDir + "/.." << QDir::currentPath();
 	for (const QString& dir : dirs)
 	{
-		// 在 <dir>/translate/ 下查找 ieddesigner_zh_CN.qm（外部文件优先，便于替换/扩展）
 		if (translator.load(QString("ieddesigner_zh_CN"), dir + "/translate", QString("_")))
 		{
 			app.installTranslator(&translator);
 			return;
 		}
 	}
-	// 回退：使用编译进资源（qrc）的翻译，部署无需拷贝
+	// 回退：使用编译进资源的翻译
 	if (translator.load(QString("ieddesigner_zh_CN"), QString(":/i18n"), QString("_")))
 		app.installTranslator(&translator);
 }
 
-// --autopen：创建真实主窗口并定时触发打开流程（配合 cdb 抓闪退栈）
+// --autopen：创建真实主窗口并定时触发打开流程 自动化测试使用
 static int RunAutoOpen(const char* filePath)
 {
 	int argc = 1;
@@ -392,7 +435,7 @@ static int RunSkeleton(const char* outPath)
 {
 	SclModel model = MakeNewModel();
 
-	// 设置 DAI 值（覆盖点分路径 Struct 展开），验证 DAI 读写链路
+	// 设置DAI值 验证DAI读写链路
 	SclLDevice& ld = model.ied.lds[0];
 	for (size_t i = 0; i < ld.ln0.dos.size(); ++i)
 	{
@@ -407,6 +450,12 @@ static int RunSkeleton(const char* outPath)
 				ld.lns[i].dos[d].SetDaiVal("vendor", "newfert");
 		}
 	}
+
+	// 定值组逻辑节点（第三期任务 3：验证 SG 定值点表非空）
+	SclLn sgcb = SclTemplates::MakeLn("SGCB");
+	sgcb.inst = "1";
+	sgcb.desc = "Setting group control";
+	ld.lns.push_back(sgcb);
 
 	// 数据集 + 控制块 + GSE 通信地址（验证完整链路与加载器兼容性）
 	SclDataSet ds;
@@ -454,7 +503,7 @@ static int RunSkeleton(const char* outPath)
 	SclLogControl lc;
 	lc.name = "lc1";
 	lc.dataSet = "dsRelay";
-	lc.logName = "Log";
+	lc.logName = "LD1";   // Ed1 schema keyref：logName 须为 IED 内某个 LD 实例名
 	lc.trgOps.present = true;
 	ld.ln0.logs.push_back(lc);
 
@@ -463,6 +512,25 @@ static int RunSkeleton(const char* outPath)
 	scb.dataSet = "dsRelay";
 	scb.numOfSG = "2";
 	ld.ln0.settings.push_back(scb);
+
+	// ExtRef 外部引用（GOOSE 订阅声明）：DA 级 + DO 级各一条，验证回环
+	SclExtRef er;
+	er.iedName = "REMOTE1";
+	er.ldInst = "LD2";
+	er.lnClass = "GGIO";
+	er.lnInst = "1";
+	er.doName = "Ind1";
+	er.daName = "stVal";
+	er.desc = "sample external reference";
+	er.intAddr = "IN/1";
+	ld.ln0.extRefs.push_back(er);
+	SclExtRef er2;
+	er2.iedName = "REMOTE2";
+	er2.ldInst = "LD1";
+	er2.lnClass = "MMXU";
+	er2.lnInst = "1";
+	er2.doName = "TotW";
+	ld.ln0.extRefs.push_back(er2);
 
 	if (!model.subnets.empty())
 	{
@@ -533,8 +601,24 @@ static int RunSkeleton(const char* outPath)
 		const SclLn& d0 = dst.ln0;
 		if (d0.dataSets.size() != s0.dataSets.size()) { printf("SKELETON diff: dataSet count\n"); diff++; }
 		else if (!s0.dataSets.empty() && (d0.dataSets[0].fcdas.size() != s0.dataSets[0].fcdas.size() ||
-			d0.dataSets[0].fcdas[0].RefText() != s0.dataSets[0].fcdas[0].RefText()))
-		{ printf("SKELETON diff: FCDA\n"); diff++; }
+			d0.dataSets[0].fcdas[0].ldInst != s0.dataSets[0].fcdas[0].ldInst ||
+			d0.dataSets[0].fcdas[0].lnClass != s0.dataSets[0].fcdas[0].lnClass ||
+			d0.dataSets[0].fcdas[0].doName != s0.dataSets[0].fcdas[0].doName ||
+			d0.dataSets[0].fcdas[0].daName != s0.dataSets[0].fcdas[0].daName ||
+			d0.dataSets[0].fcdas[0].fc != s0.dataSets[0].fcdas[0].fc))
+		{ printf("SKELETON diff: FCDA\n"); diff++; }   // Ed1 FCDA 无 iedName 属性，回读 iedName 为空不比对
+		if (d0.extRefs.size() != s0.extRefs.size())
+		{ printf("SKELETON diff: extRef count\n"); diff++; }
+		else
+		{
+			for (size_t e = 0; e < s0.extRefs.size(); ++e)
+			{
+				// Ed1 schema 的 ExtRef 无 desc 属性（仅存于工程文件本地），回读 desc 为空不比对
+				if (d0.extRefs[e].RefText() != s0.extRefs[e].RefText() ||
+					d0.extRefs[e].intAddr != s0.extRefs[e].intAddr)
+				{ printf("SKELETON extRef diff: %s\n", s0.extRefs[e].RefText().c_str()); diff++; }
+			}
+		}
 		if (d0.reports.size() != s0.reports.size() ||
 			(!s0.reports.empty() && (d0.reports[0].name != s0.reports[0].name ||
 				d0.reports[0].confRev != s0.reports[0].confRev || d0.reports[0].trgOps.present != s0.reports[0].trgOps.present ||
@@ -551,8 +635,8 @@ static int RunSkeleton(const char* outPath)
 			(!s0.logs.empty() && (d0.logs[0].logName != s0.logs[0].logName || d0.logs[0].trgOps.present != s0.logs[0].trgOps.present)))
 		{ printf("SKELETON diff: logControl\n"); diff++; }
 		if (d0.settings.size() != s0.settings.size() ||
-			(!s0.settings.empty() && (d0.settings[0].numOfSG != s0.settings[0].numOfSG)))
-		{ printf("SKELETON diff: settingControl\n"); diff++; }
+			(!s0.settings.empty() && d0.settings[0].numOfSG != s0.settings[0].numOfSG))
+		{ printf("SKELETON diff: settingControl\n"); diff++; }   // Ed1 仅 numOfSGs 落盘，name/datSet 为工程文件本地字段
 	}
 	// 通信段 GSE 地址回读比对
 	if (reloaded.subnets.size() != model.subnets.size() ||
@@ -562,11 +646,86 @@ static int RunSkeleton(const char* outPath)
 	{ printf("SKELETON diff: subnets/gse address\n"); diff++; }
 	printf("SKELETON reread diff=%d services=%d pParams=%d\n", diff,
 		(int)reloaded.ied.services.size(), (int)reloaded.ied.pParams.size());
-	return (v.refsParsed && diff == 0) ? 0 : 1;
+	return (v.refsParsed && v.sgPoints > 0 && v.semanticErrors.empty() && diff == 0) ? 0 : 1;
+}
+
+// 界面主题：加载独立 QSS 文件（应用级，所有窗口含对话框统一生效）
+// 查找顺序：exe 目录 → 上级目录（MSVC 构建 Debug/Release 布局）→ qrc 内置兜底。
+// 修改 theme.qss 后重启程序即可生效，无需重新编译。
+static void ApplyTheme(QApplication& app)
+{
+	app.setStyle("Fusion");
+	QString qss;
+	const QStringList candidates = {
+		QCoreApplication::applicationDirPath() + "/theme.qss",
+		QCoreApplication::applicationDirPath() + "/../theme.qss"
+	};
+	for (const QString& p : candidates)
+	{
+		QFile f(p);
+		if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+		{
+			qss = QString::fromUtf8(f.readAll());
+			break;
+		}
+	}
+	if (qss.isEmpty())
+	{
+		QFile f(":/ui/theme.qss");
+		if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+			qss = QString::fromUtf8(f.readAll());
+	}
+	app.setStyleSheet(qss);
+}
+
+// --xsd：对指定 SCL 文件执行 XSD 校验
+// @return 0=通过，1=流程错误，2=存在违规
+static int RunXsd(const char* filePath)
+{
+	int argc = 1;
+	char appname[] = "ieddesigner-xsd";
+	char* argv[] = { appname, 0 };
+	QCoreApplication app(argc, argv);
+
+	FILE* f = fopen(filePath, "rb");
+	if (!f) {
+		printf("XSD FAIL open file: %s\n", filePath);
+		return 1;
+	}
+	std::string text;
+	char buf[65536];
+	size_t n;
+	while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
+		text.append(buf, n);
+	fclose(f);
+
+	std::string dir = XsdValidator::EnsureSchemasExtracted();
+	if (dir.empty()) {
+		printf("XSD FAIL extract schemas\n");
+		return 1;
+	}
+
+	std::vector<XsdValidator::XsdError> errors;
+	std::string errText;
+	if (!XsdValidator::Validate(text, dir, errors, errText)) {
+		printf("XSD FAIL: %s\n", errText.c_str());
+		return 1;
+	}
+	if (errors.empty()) {
+		printf("XSD PASS: no schema violations\n");
+		return 0;
+	}
+	printf("XSD VIOLATIONS: %d\n", (int)errors.size());
+	for (size_t i = 0; i < errors.size(); ++i)
+		printf("  line %d: %s\n", errors[i].line, errors[i].message.c_str());
+	return 2;
 }
 
 int main(int argc, char** argv)
 {
+	// xsd文件检查
+	if (argc >= 3 && strcmp(argv[1], "--xsd") == 0)
+		return RunXsd(argv[2]);
 	if (argc >= 4 && strcmp(argv[1], "--selftest") == 0)
 		return RunSelfTest(argv[2], argv[3]);
 	if (argc >= 3 && strcmp(argv[1], "--skeleton") == 0)
@@ -583,6 +742,7 @@ int main(int argc, char** argv)
 		return RunOnline(argv[2], atoi(argv[3]), argc >= 5 ? argv[4] : "");
 
 	QApplication app(argc, argv);
+	ApplyTheme(app);
 	QTranslator translator;
 	SetupTranslation(app, translator);
 

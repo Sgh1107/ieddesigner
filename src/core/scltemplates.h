@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <utility>
 #include "sclmodel.h"
 
@@ -70,6 +71,10 @@ namespace SclTemplates
 
 	// 已知 DAType 的 BDA 列表（未知名返回空）
 	std::vector<SclDa> BdasForDaType(const std::string& id);
+
+	// 注册打开文件时解析出的 DAType 定义（reader 调用）：
+	// 使 DaiSpecsForDo 能展开文件自定义的 Struct DA（内置表查不到的 id 落到注册表）
+	void RegisterFileDaTypes(const std::map<std::string, std::vector<SclDa> >& daTypeBdas);
 
 	// 已知枚举类型的取值表（未知名返回空；自定义枚举查模型 extraEnumTypes）
 	std::vector<std::pair<int, std::string> > EnumValsFor(const std::string& id);

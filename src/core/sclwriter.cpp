@@ -160,9 +160,9 @@ namespace SclWriter
 								text += "        </Address>" + nl;
 							}
 							if (!ga.minTime.empty())
-								text += "        <MinTime>" + XmlEscape(ga.minTime) + "</MinTime>" + nl;
+								text += "        <MinTime unit=\"s\" multiplier=\"m\">" + XmlEscape(ga.minTime) + "</MinTime>" + nl;
 							if (!ga.maxTime.empty())
-								text += "        <MaxTime>" + XmlEscape(ga.maxTime) + "</MaxTime>" + nl;
+								text += "        <MaxTime unit=\"s\" multiplier=\"m\">" + XmlEscape(ga.maxTime) + "</MaxTime>" + nl;
 							text += "      </GSE>" + nl;
 						}
 						for (size_t g = 0; g < cap.smvs.size(); ++g)
@@ -293,7 +293,11 @@ namespace SclWriter
 		for (size_t li = 0; li < ied.lds.size(); ++li)
 		{
 			const SclLDevice& ld = ied.lds[li];
-			text += "        <LDevice inst=\"" + XmlEscape(ld.inst) + "\">" + nl;
+			// LDevice 的 desc 属性（空则不输出）
+			std::string ldDescAttr;
+			if (!ld.desc.empty())
+				ldDescAttr = " desc=\"" + XmlEscape(ld.desc) + "\"";
+			text += "        <LDevice inst=\"" + XmlEscape(ld.inst) + "\"" + ldDescAttr + ">" + nl;
 			if (!ld.comment.empty())
 				text += "          <!--" + SanitizeComment(ld.comment) + "-->" + nl;
 
@@ -306,45 +310,38 @@ namespace SclWriter
 			{
 				const SclLn& ln = *allLns[i];
 				std::string lnTypeId = lnTypeIdByClass[ln.lnClass];
+				// LN/LN0 的 desc 属性（空则不输出，保持与旧格式兼容）
+				std::string descAttr;
+				if (!ln.desc.empty())
+					descAttr = " desc=\"" + XmlEscape(ln.desc) + "\"";
 				std::string open;
 				if (i == 0)
-					open = "          <LN0 lnClass=\"" + XmlEscape(ln.lnClass) + "\" inst=\"\" lnType=\"" + lnTypeId + "\">";
+					open = "          <LN0 lnClass=\"" + XmlEscape(ln.lnClass) + "\" inst=\"\" lnType=\"" + lnTypeId + "\"" + descAttr + ">";
 				else
 					open = "          <LN lnClass=\"" + XmlEscape(ln.lnClass) + "\" inst=\"" + XmlEscape(ln.inst) +
-					       "\" prefix=\"" + XmlEscape(ln.prefix) + "\" lnType=\"" + lnTypeId + "\">";
+					       "\" prefix=\"" + XmlEscape(ln.prefix) + "\" lnType=\"" + lnTypeId + "\"" + descAttr + ">";
 				text += open + nl;
 				if (!ln.comment.empty())
 					text += "            <!--" + SanitizeComment(ln.comment) + "-->" + nl;
-				for (size_t d = 0; d < ln.dos.size(); ++d)
-				{
-					const SclDo& dobj = ln.dos[d];
-					if (dobj.desc.empty() && dobj.dais.empty())
-						continue;
-					text += "            <DOI name=\"" + XmlEscape(dobj.name) + "\">" + nl;
-					if (!dobj.desc.empty())
-					{
-						text += "              <DAI name=\"d\">" + nl;
-						text += "                <Val>" + XmlEscape(dobj.desc) + "</Val>" + nl;
-						text += "              </DAI>" + nl;
-					}
-					for (size_t k = 0; k < dobj.dais.size(); ++k)
-						EmitDai(dobj.dais[k], 14, text, nl);
-					text += "            </DOI>" + nl;
-				}
 
-				// 数据集
+				// 数据集（schema 顺序：DataSet 在 tAnyLN 最前）
 				for (size_t s = 0; s < ln.dataSets.size(); ++s)
 				{
 					const SclDataSet& ds = ln.dataSets[s];
-					text += "            <DataSet name=\"" + XmlEscape(ds.name) + "\">" + nl;
+					std::string dsOpen = "            <DataSet name=\"" + XmlEscape(ds.name) + "\"";
+					if (!ds.desc.empty())
+						dsOpen += " desc=\"" + XmlEscape(ds.desc) + "\"";
+					text += dsOpen + ">" + nl;
 					for (size_t k = 0; k < ds.fcdas.size(); ++k)
 					{
 						const SclFcda& f = ds.fcdas[k];
-						text += "              <FCDA iedName=\"" + XmlEscape(f.iedName) + "\" ldInst=\"" +
-							XmlEscape(f.ldInst) + "\" prefix=\"" + XmlEscape(f.prefix) + "\" lnClass=\"" +
-							XmlEscape(f.lnClass) + "\" lnInst=\"" + XmlEscape(f.lnInst) + "\" doName=\"" +
-							XmlEscape(f.doName) + "\" daName=\"" + XmlEscape(f.daName) + "\" fc=\"" +
-							XmlEscape(f.fc) + "\" />" + nl;
+						// Ed1 schema：FCDA 无 iedName 属性；daName 不允许空串（仅 DA 级成员输出）
+						text += "              <FCDA ldInst=\"" + XmlEscape(f.ldInst) + "\" prefix=\"" +
+							XmlEscape(f.prefix) + "\" lnClass=\"" + XmlEscape(f.lnClass) + "\" lnInst=\"" +
+							XmlEscape(f.lnInst) + "\" doName=\"" + XmlEscape(f.doName) + "\"";
+						if (!f.daName.empty())
+							text += " daName=\"" + XmlEscape(f.daName) + "\"";
+						text += " fc=\"" + XmlEscape(f.fc) + "\" />" + nl;
 					}
 					text += "            </DataSet>" + nl;
 				}
@@ -366,70 +363,29 @@ namespace SclWriter
 						open += " datSet=\"" + XmlEscape(rc.dataSet) + "\"";
 					if (!rc.intgPd.empty())
 						open += " intgPd=\"" + XmlEscape(rc.intgPd) + "\"";
+					// Ed1 schema：confRev 为必填属性（非子元素），缺省按 "1"
+					open += " confRev=\"" + XmlEscape(rc.confRev.empty() ? std::string("1") : rc.confRev) + "\"";
 					open += ">";
 					text += open + nl;
 					if (rc.trgOps.present)
 						text += "              <TrgOps dchg=\"" + std::string(BoolAttr(rc.trgOps.dchg)) +
 							"\" qchg=\"" + BoolAttr(rc.trgOps.qchg) + "\" dupd=\"" + BoolAttr(rc.trgOps.dupd) +
-							"\" period=\"" + BoolAttr(rc.trgOps.period) + "\" gi=\"" + BoolAttr(rc.trgOps.gi) + "\" />" + nl;
+							"\" period=\"" + BoolAttr(rc.trgOps.period) + "\" />" + nl;
 					if (rc.optFields.present)
 						text += "              <OptFields seqNum=\"" + std::string(BoolAttr(rc.optFields.seqNum)) +
 							"\" timeStamp=\"" + BoolAttr(rc.optFields.timeStamp) + "\" dataSet=\"" + BoolAttr(rc.optFields.dataSet) +
 							"\" reasonCode=\"" + BoolAttr(rc.optFields.reasonCode) + "\" dataRef=\"" + BoolAttr(rc.optFields.dataRef) +
-							"\" bufOvfl=\"" + BoolAttr(rc.optFields.bufOvfl) + "\" entryID=\"" + BoolAttr(rc.optFields.entryID) +
-							"\" config=\"" + BoolAttr(rc.optFields.config) + "\" />" + nl;
+							"\" entryID=\"" + BoolAttr(rc.optFields.entryID) + "\" />" + nl;
 					if (rc.maxClients >= 0)
 					{
 						char mb[32];
 						sprintf(mb, "%d", rc.maxClients);
 						text += "              <RptEnabled max=\"" + std::string(mb) + "\" />" + nl;
 					}
-					if (!rc.confRev.empty())
-						text += "              <ConfRev>" + XmlEscape(rc.confRev) + "</ConfRev>" + nl;
 					text += "            </ReportControl>" + nl;
 				}
 
-				// GOOSE 控制块
-				for (size_t s = 0; s < ln.gses.size(); ++s)
-				{
-					const SclGseControl& gc = ln.gses[s];
-					std::string open = "            <GSEControl name=\"" + XmlEscape(gc.name) + "\"";
-					if (!gc.appId.empty())
-						open += " appID=\"" + XmlEscape(gc.appId) + "\"";
-					if (gc.fixedOffs)
-						open += " fixedOffs=\"true\"";
-					if (!gc.dataSet.empty())
-						open += " datSet=\"" + XmlEscape(gc.dataSet) + "\"";
-					open += ">";
-					text += open + nl;
-					if (!gc.confRev.empty())
-						text += "              <ConfRev>" + XmlEscape(gc.confRev) + "</ConfRev>" + nl;
-					text += "            </GSEControl>" + nl;
-				}
-
-				// 采样值控制块
-				for (size_t s = 0; s < ln.smvs.size(); ++s)
-				{
-					const SclSampledValueControl& sc = ln.smvs[s];
-					std::string open = "            <SampledValueControl name=\"" + XmlEscape(sc.name) + "\"";
-					if (!sc.smvId.empty())
-						open += " smvID=\"" + XmlEscape(sc.smvId) + "\"";
-					if (!sc.dataSet.empty())
-						open += " datSet=\"" + XmlEscape(sc.dataSet) + "\"";
-					if (!sc.smpMod.empty())
-						open += " smpMod=\"" + XmlEscape(sc.smpMod) + "\"";
-					if (!sc.smpRate.empty())
-						open += " smpRate=\"" + XmlEscape(sc.smpRate) + "\"";
-					if (!sc.nofASDU.empty())
-						open += " nofASDU=\"" + XmlEscape(sc.nofASDU) + "\"";
-					open += ">";
-					text += open + nl;
-					if (!sc.confRev.empty())
-						text += "              <ConfRev>" + XmlEscape(sc.confRev) + "</ConfRev>" + nl;
-					text += "            </SampledValueControl>" + nl;
-				}
-
-				// 日志控制块
+				// 日志控制块（schema 顺序：ReportControl 之后、DOI 之前；Ed1 TrgOps 无 gi）
 				for (size_t s = 0; s < ln.logs.size(); ++s)
 				{
 					const SclLogControl& lc = ln.logs[s];
@@ -445,20 +401,97 @@ namespace SclWriter
 					if (lc.trgOps.present)
 						text += "              <TrgOps dchg=\"" + std::string(BoolAttr(lc.trgOps.dchg)) +
 							"\" qchg=\"" + BoolAttr(lc.trgOps.qchg) + "\" dupd=\"" + BoolAttr(lc.trgOps.dupd) +
-							"\" period=\"" + BoolAttr(lc.trgOps.period) + "\" gi=\"" + BoolAttr(lc.trgOps.gi) + "\" />" + nl;
+							"\" period=\"" + BoolAttr(lc.trgOps.period) + "\" />" + nl;
 					text += "            </LogControl>" + nl;
 				}
 
-				// 定值控制块
+				// DOI（数据对象实例；schema 顺序：Inputs 之前）
+				for (size_t d = 0; d < ln.dos.size(); ++d)
+				{
+					const SclDo& dobj = ln.dos[d];
+					if (dobj.desc.empty() && dobj.dais.empty())
+						continue;
+					text += "            <DOI name=\"" + XmlEscape(dobj.name) + "\">" + nl;
+					if (!dobj.desc.empty())
+					{
+						text += "              <DAI name=\"d\">" + nl;
+						text += "                <Val>" + XmlEscape(dobj.desc) + "</Val>" + nl;
+						text += "              </DAI>" + nl;
+					}
+					for (size_t k = 0; k < dobj.dais.size(); ++k)
+						EmitDai(dobj.dais[k], 14, text, nl);
+					text += "            </DOI>" + nl;
+				}
+
+				// 外部信号引用（LN0/LN 通用；schema tExtRef 无 desc 属性，desc 仅存于工程文件本地）
+				if (!ln.extRefs.empty())
+				{
+					text += "            <Inputs>" + nl;
+					for (size_t e = 0; e < ln.extRefs.size(); ++e)
+					{
+						const SclExtRef& er = ln.extRefs[e];
+						std::string attrs = " iedName=\"" + XmlEscape(er.iedName) + "\"";
+						if (!er.ldInst.empty())
+							attrs += " ldInst=\"" + XmlEscape(er.ldInst) + "\"";
+						if (!er.prefix.empty())
+							attrs += " prefix=\"" + XmlEscape(er.prefix) + "\"";
+						if (!er.lnClass.empty())
+							attrs += " lnClass=\"" + XmlEscape(er.lnClass) + "\"";
+						if (!er.lnInst.empty())
+							attrs += " lnInst=\"" + XmlEscape(er.lnInst) + "\"";
+						attrs += " doName=\"" + XmlEscape(er.doName) + "\"";
+						if (!er.daName.empty())
+							attrs += " daName=\"" + XmlEscape(er.daName) + "\"";
+						if (!er.intAddr.empty())
+							attrs += " intAddr=\"" + XmlEscape(er.intAddr) + "\"";
+						text += "              <ExtRef" + attrs + " />" + nl;
+					}
+					text += "            </Inputs>" + nl;
+				}
+
+				// GOOSE 控制块（schema：confRev 为属性，非子元素）
+				for (size_t s = 0; s < ln.gses.size(); ++s)
+				{
+					const SclGseControl& gc = ln.gses[s];
+					std::string open = "            <GSEControl name=\"" + XmlEscape(gc.name) + "\"";
+					if (!gc.appId.empty())
+						open += " appID=\"" + XmlEscape(gc.appId) + "\"";
+					if (gc.fixedOffs)
+						open += " fixedOffs=\"true\"";
+					if (!gc.dataSet.empty())
+						open += " datSet=\"" + XmlEscape(gc.dataSet) + "\"";
+					if (!gc.confRev.empty())
+						open += " confRev=\"" + XmlEscape(gc.confRev) + "\"";
+					open += ">";
+					text += open + nl;
+					text += "            </GSEControl>" + nl;
+				}
+
+				// 采样值控制块（schema：confRev 属性、无 smpMod、SmvOpts 必备）
+				for (size_t s = 0; s < ln.smvs.size(); ++s)
+				{
+					const SclSampledValueControl& sc = ln.smvs[s];
+					std::string open = "            <SampledValueControl name=\"" + XmlEscape(sc.name) + "\"";
+					if (!sc.smvId.empty())
+						open += " smvID=\"" + XmlEscape(sc.smvId) + "\"";
+					if (!sc.dataSet.empty())
+						open += " datSet=\"" + XmlEscape(sc.dataSet) + "\"";
+					open += " smpRate=\"" + XmlEscape(sc.smpRate.empty() ? std::string("80") : sc.smpRate) + "\"";
+					open += " nofASDU=\"" + XmlEscape(sc.nofASDU.empty() ? std::string("1") : sc.nofASDU) + "\"";
+					if (!sc.confRev.empty())
+						open += " confRev=\"" + XmlEscape(sc.confRev) + "\"";
+					open += ">";
+					text += open + nl;
+					text += "              <SmvOpts />" + nl;
+					text += "            </SampledValueControl>" + nl;
+				}
+
+				// 定值控制块（Ed1 schema：仅 numOfSGs/actSG 属性；name/datSet 仅存于工程文件本地）
 				for (size_t s = 0; s < ln.settings.size(); ++s)
 				{
 					const SclSettingControl& sc = ln.settings[s];
-					std::string open = "            <SettingControl name=\"" + XmlEscape(sc.name) + "\"";
-					if (!sc.dataSet.empty())
-						open += " datSet=\"" + XmlEscape(sc.dataSet) + "\"";
-					if (!sc.numOfSG.empty())
-						open += " numOfSG=\"" + XmlEscape(sc.numOfSG) + "\"";
-					text += open + " />" + nl;
+					text += "            <SettingControl numOfSGs=\"" +
+						XmlEscape(sc.numOfSG.empty() ? std::string("1") : sc.numOfSG) + "\" />" + nl;
 				}
 				if (i == 0)
 					text += "          </LN0>" + nl;

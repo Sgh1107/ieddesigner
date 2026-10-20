@@ -409,7 +409,7 @@ namespace SclReader
 			SclSettingControl scb;
 			scb.name = scbs[i].attribute("name").toUtf8().constData();
 			scb.dataSet = scbs[i].attribute("datSet").toUtf8().constData();
-			scb.numOfSG = scbs[i].attribute("numOfSG").toUtf8().constData();
+			scb.numOfSG = scbs[i].attribute("numOfSGs").toUtf8().constData();
 			ln.settings.push_back(scb);
 		}
 	}
@@ -420,6 +420,7 @@ namespace SclReader
 		ln.lnClass = lnElem.attribute("lnClass").toUtf8().constData();
 		ln.inst = lnElem.attribute("inst").toUtf8().constData();
 		ln.prefix = lnElem.attribute("prefix").toUtf8().constData();
+		ln.desc = lnElem.attribute("desc").toUtf8().constData();
 		std::string lnType = lnElem.attribute("lnType").toUtf8().constData();
 		if (isLn0)
 			ln.inst = "";
@@ -435,6 +436,29 @@ namespace SclReader
 					break;
 				}
 				cnode = cnode.nextSibling();
+			}
+		}
+
+		// 外部信号引用 <Inputs><ExtRef/></Inputs>（LN0/LN 通用）
+		{
+			std::vector<QDomElement> inputsList = ChildrenByLocalName(lnElem, "Inputs");
+			for (size_t i = 0; i < inputsList.size(); ++i)
+			{
+				std::vector<QDomElement> ers = ChildrenByLocalName(inputsList[i], "ExtRef");
+				for (size_t k = 0; k < ers.size(); ++k)
+				{
+					SclExtRef er;
+					er.iedName = ers[k].attribute("iedName").toUtf8().constData();
+					er.ldInst = ers[k].attribute("ldInst").toUtf8().constData();
+					er.prefix = ers[k].attribute("prefix").toUtf8().constData();
+					er.lnClass = ers[k].attribute("lnClass").toUtf8().constData();
+					er.lnInst = ers[k].attribute("lnInst").toUtf8().constData();
+					er.doName = ers[k].attribute("doName").toUtf8().constData();
+					er.daName = ers[k].attribute("daName").toUtf8().constData();
+					er.desc = ers[k].attribute("desc").toUtf8().constData();
+					er.intAddr = ers[k].attribute("intAddr").toUtf8().constData();
+					ln.extRefs.push_back(er);
+				}
 			}
 		}
 
@@ -534,6 +558,8 @@ namespace SclReader
 
 		TypeTables tables;
 		ParseTypeTables(root, tables);
+		// 把文件自定义 DAType 注入模板库：Struct DA 展开时才能查到 BDA 层级
+		SclTemplates::RegisterFileDaTypes(tables.daTypeBdas);
 
 		std::vector<QDomElement> ieds = ChildrenByLocalName(root, "IED");
 		QDomElement iedElem;
@@ -555,10 +581,13 @@ namespace SclReader
 
 		model.ied.name = iedName;
 
-		// Header 修订历史
+		// Header 修订历史（id 一并读回，避免保存时被重置为默认值）
 		QDomElement headerElem = ChildByLocalName(root, "Header");
 		if (!headerElem.isNull())
 		{
+			std::string headerIdAttr = headerElem.attribute("id").toUtf8().constData();
+			if (!headerIdAttr.empty())
+				model.headerId = headerIdAttr;
 			QDomElement hist = ChildByLocalName(headerElem, "History");
 			if (!hist.isNull())
 			{
@@ -738,6 +767,7 @@ namespace SclReader
 		{
 			SclLDevice ld;
 			ld.inst = lds[i].attribute("inst").toUtf8().constData();
+			ld.desc = lds[i].attribute("desc").toUtf8().constData();
 			ld.ldName = lds[i].attribute("ldName").toUtf8().constData();
 			if (ld.ldName.empty())
 				ld.ldName = ld.inst;

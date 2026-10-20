@@ -5,6 +5,34 @@
 #include <vector>
 #include <utility>
 
+// ---------------- 新建模型默认值 ----------------
+// 集中维护新建工程的默认参数，SclIed 构造函数与 MakeNewModel 共用，
+// 避免两处各写一套导致默认值漂移（原构造函数为 192.168.31.x，MakeNewModel 为 192.168.1.x）。
+// 需要调整默认规格时只改这里。
+namespace SclDefaults
+{
+	const char* const IED_NAME          = "TEMPLATE";
+	const char* const IED_DESC          = "TEMPLATE";
+	const char* const MANUFACTURER      = "newfert";
+	const char* const IED_TYPE          = "RTUType";
+	const char* const AP_NAME           = "accessPoint1";
+	const char* const LD_INST           = "LD1";
+	// 通信参数（对齐 config_new.cid 规格）
+	const char* const IP                = "192.168.1.100";
+	const char* const IP_SUBNET         = "255.255.255.0";
+	const char* const IP_GATEWAY        = "192.168.1.1";
+	const int         PORT              = 102;
+	const char* const MMS_PORT_STR      = "102";
+	// 以下出厂设置
+	const char* const OSI_AP_TITLE      = "1,1,9999,1";
+	const char* const OSI_AE_QUALIFIER  = "12";
+	const char* const OSI_PSEL          = "00000001";
+	const char* const OSI_SSEL          = "0001";
+	const char* const OSI_TSEL          = "0001";
+	
+	const int         SERVER_TIMEOUT    = 30;
+}
+
 struct SclDa
 {
 	std::string name;
@@ -184,6 +212,36 @@ struct SclSubNetwork
 	std::vector<SclConnectedAP> aps;
 };
 
+// ExtRef 外部信号引用：LN0/LN 下 <Inputs><ExtRef/></Inputs>，GOOSE 订阅方声明
+struct SclExtRef
+{
+	std::string iedName;   // 来源装置名（必填）
+	std::string ldInst;    // 来源逻辑设备实例
+	std::string prefix;    // 来源 LN 前缀（可空）
+	std::string lnClass;   // 来源 LN 类名
+	std::string lnInst;    // 来源 LN 实例号
+	std::string doName;    // 来源 DO 名（必填）
+	std::string daName;    // 来源 DA 名（可空 = DO 级引用）
+	std::string desc;      // 备注（可空）
+	std::string intAddr;   // 订阅方内部输入地址（可空）
+
+	SclExtRef() {}
+	// 引用路径展示文本："来源IED/ldInst/LN.doName[.daName]"
+	std::string RefText() const
+	{
+		std::string ln = prefix + lnClass + lnInst;
+		std::string ref = iedName;
+		if (!ldInst.empty())
+			ref += "/" + ldInst;
+		if (!ln.empty())
+			ref += "/" + ln;
+		ref += "." + doName;
+		if (!daName.empty())
+			ref += "." + daName;
+		return ref;
+	}
+};
+
 struct SclLn
 {
 	std::string prefix;
@@ -198,6 +256,7 @@ struct SclLn
 	std::vector<SclSampledValueControl> smvs;
 	std::vector<SclLogControl> logs;
 	std::vector<SclSettingControl> settings;
+	std::vector<SclExtRef> extRefs;   // 外部信号引用（Inputs 段）
 
 	std::string Name() const;
 };

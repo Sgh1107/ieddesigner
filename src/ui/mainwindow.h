@@ -15,6 +15,9 @@ class QPlainTextEdit;
 class QAction;
 class QMenu;
 class OnlineBrowseThread;
+class TreeDetailDelegate;
+
+namespace XsdValidator { struct XsdError; }
 
 class MainWindow : public QMainWindow
 {
@@ -22,6 +25,9 @@ class MainWindow : public QMainWindow
 public:
 	MainWindow(QWidget* parent = 0);
 	~MainWindow();
+
+protected:
+	void closeEvent(QCloseEvent* event) override;
 
 private slots:
 	void onNewModel();
@@ -36,6 +42,7 @@ private slots:
 	void onOnlineFinished();
 	void onTreeSelectionChanged();
 	void onTreeContextMenu(const QPoint& pos);
+	void onTreeItemChanged(QTreeWidgetItem* item, int column);
 	void onXmlPreview();
 
 public:
@@ -49,6 +56,8 @@ private:
 		const QString& selectPath) const;
 	QTreeWidgetItem* addNode(QTreeWidgetItem* parent, const QString& text,
 		const QString& detail, const QString& path);
+	void applyNodeStyle(QTreeWidgetItem* item, const QString& path);
+	void applyDetailEdit(const QString& path, const QString& text);
 	void populateProps(const QString& path);
 	void applyProp(const QString& path, int row, const QString& value);
 	void log(const QString& text);
@@ -59,7 +68,7 @@ private:
 	SclLn* lnAt(int li, int ni);
 	SclDo* doAt(int li, int ni, int di);
 
-	// 第一期新增：编辑器基本功
+	// 编辑器基本功能
 	void setupMenus();
 	void rebuildRecentMenu();
 	void pushRecentFile(const QString& path);
@@ -80,7 +89,7 @@ private:
 	bool lnExistsInLd(const SclLDevice& ld, const std::string& prefix,
 		const std::string& lnClass, const std::string& inst, int skipNi) const;
 
-	// 第二期：DO/DAI 编辑与模板库
+	// DO/DAI 编辑与模板库
 	void loadUserTemplates();
 	void saveUserTemplates() const;
 	void manageTemplates();
@@ -96,7 +105,7 @@ private:
 	static bool daiTypeEditable(const std::string& bType);
 	bool daiValueValid(const SclDaiSpec& spec, const QString& value, QString& normalized) const;
 
-	// 第二期第二批：数据集/控制块/通信段 + 界面
+	// 数据集/控制块/通信段 + 界面
 	void setupToolbar();
 	QIcon iconForPath(const QString& path) const;
 	void addSubNet();
@@ -108,6 +117,17 @@ private:
 	void addDataSet(int li, int ni);
 	bool editDataSetDialog(SclDataSet& ds, int li);
 	void deleteDataSet(int li, int ni, int di);
+	// ExtRef 外部信号引用（GOOSE 订阅声明）
+	void addExternalRef(int li, int ni);
+	void editExternalRef(int li, int ni, int idx);
+	void deleteExternalRef(int li, int ni, int idx);
+	bool editExtRefDialog(SclExtRef& er);
+	// 保存/导出时自动追加当天修订历史条目
+	void ensureAutoHistory();
+	void setUiLanguage(const QString& lang);
+	// XSD 校验
+	void validateXsdAndReport(const std::string& sclText);
+	void showXsdErrorList(const std::vector<XsdValidator::XsdError>& errors);
 	void addReport(int li, int ni);
 	void addGseControl(int li, int ni);
 	void addSmvControl(int li, int ni);
@@ -136,6 +156,7 @@ private:
 	QAction* m_openAct;
 	QMenu* m_recentMenu;
 	OnlineBrowseThread* m_browseThread;
+	TreeDetailDelegate* m_detailDelegate;
 	SclModel m_model;
 	QString m_currentFile;
 	QString m_currentPath;
