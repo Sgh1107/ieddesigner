@@ -6,6 +6,12 @@
 
 namespace CsvWriter
 {
+	// 源码为 GBK（分支约定），中文需转 UTF-8 以匹配 SCL/CSV 的 UTF-8 中间文本
+	static std::string Utf8FromGbk(const char* gbk)
+	{
+		return std::string(QString::fromLocal8Bit(gbk).toUtf8().constData());
+	}
+
 	static const char* FcText(uint8 fc)
 	{
 		switch (fc)
@@ -24,19 +30,19 @@ namespace CsvWriter
 		}
 	}
 
-	static std::string CsvField(const std::string& gbkValue)
+	static std::string CsvField(const std::string& value)
 	{
-		bool needQuote = gbkValue.find(',') != std::string::npos ||
-			gbkValue.find('"') != std::string::npos;
+		bool needQuote = value.find(',') != std::string::npos ||
+			value.find('"') != std::string::npos;
 		if (!needQuote)
-			return gbkValue;
+			return value;
 		std::string out = "\"";
-		for (size_t i = 0; i < gbkValue.size(); ++i)
+		for (size_t i = 0; i < value.size(); ++i)
 		{
-			if (gbkValue[i] == '"')
+			if (value[i] == '"')
 				out += "\"\"";
 			else
-				out += gbkValue[i];
+				out += value[i];
 		}
 		out += "\"";
 		return out;
@@ -71,7 +77,7 @@ namespace CsvWriter
 
 		std::string nl = "\r\n";
 		std::string text;
-		text += "组,组内序号,SetCode,IED,LD,LN,DO,DA,读引用,控制引用,FC,CDC,值类型,可控,描述" + nl;
+		text += Utf8FromGbk("组,组内序号,SetCode,IED,LD,LN,DO,DA,读引用,控制引用,FC,CDC,值类型,可控,描述") + nl;
 
 		struct Section { const char* group; const std::vector<SMMSDataRef>* refs; bool isSg; };
 		Section sections[5] = {
@@ -111,22 +117,24 @@ namespace CsvWriter
 				text += ",";
 				text += CsvField(r.strCDC) + ",";
 				text += CsvField(r.strBType) + ",";
-				text += (r.bControllable ? "是" : "否");
+				text += Utf8FromGbk(r.bControllable ? "是" : "否");
 				text += ",";
 				text += CsvField(desc);
 				text += nl;
 			}
 		}
 
-		Q_UNUSED(model);
-		FILE* fp = fopen(path.c_str(), "wb");
-		if (fp == NULL)
-		{
-			errorText = "open csv file failed: " + path;
-			return false;
-		}
-		fwrite(text.data(), 1, text.size(), fp);
-		fclose(fp);
-		return true;
+	Q_UNUSED(model);
+	// 源码与模型内部均为 UTF-8；CSV 输出保持 GBK 编码，兼容既有下游导入工具
+	QByteArray gbkText = QString::fromUtf8(text.c_str(), (int)text.size()).toLocal8Bit();
+	FILE* fp = fopen(path.c_str(), "wb");
+	if (fp == NULL)
+	{
+		errorText = "open csv file failed: " + path;
+		return false;
+	}
+	fwrite(gbkText.constData(), 1, gbkText.size(), fp);
+	fclose(fp);
+	return true;
 	}
 }

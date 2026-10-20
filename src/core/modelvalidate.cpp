@@ -20,6 +20,18 @@ ValidateOutcome ValidateSclFile(const std::string& sclPath, const std::string& i
 	outcome.sgQuirk = !result.success &&
 		result.errorText == "SG contains an invalid point" &&
 		!outcome.table.sgRefs.empty();
+
+	// 第三期任务 3：汇总 loader 侧数据集/控制块语义校验结果
+	outcome.sgPoints = result.sgCount;
+	outcome.datasetCount = result.semantics.datasetCount;
+	outcome.reportControlCount = result.semantics.reportControlCount;
+	outcome.gseControlCount = result.semantics.gseControlCount;
+	outcome.sampledValueControlCount = result.semantics.sampledValueControlCount;
+	outcome.logControlCount = result.semantics.logControlCount;
+	outcome.settingControlCount = result.semantics.settingControlCount;
+	outcome.gseAddressCount = result.semantics.gseAddressCount;
+	outcome.smvAddressCount = result.semantics.smvAddressCount;
+	outcome.semanticErrors = result.semantics.errors;
 	return outcome;
 }
 

@@ -214,7 +214,9 @@ namespace OnlineClient
 					std::string lnRef = ldName + "/" + lnName;
 
 					IedClientError doErr = IED_ERROR_OK;
-					LinkedList doList = IedConnection_getDataDirectoryFC(conn, &doErr, lnRef.c_str());
+					// 列 LN 下的 DO 必须用 getLogicalNodeDirectory（引用到 LN 级）；
+					// getDataDirectoryFC 要求引用带 .DO 部分（DO 级及以上），对 LN 级引用会报 OBJECT_REFERENCE_INVALID
+					LinkedList doList = IedConnection_getLogicalNodeDirectory(conn, &doErr, lnRef.c_str(), ACSI_CLASS_DATA_OBJECT);
 					std::vector<std::string> doNames;
 					std::set<std::string> unique;
 					if (doErr == IED_ERROR_OK && doList != NULL)
@@ -287,15 +289,15 @@ void OnlineBrowseThread::run()
 	std::string err;
 	std::string detected;
 	std::vector<BLd> lds;
-	std::string preferred = m_iedName.toLocal8Bit().constData();
-	m_ok = OnlineClient::BrowseIedModel(m_ip.toLocal8Bit().constData(), m_port, preferred, detected, lds, err);
+	std::string preferred = m_iedName.toUtf8().constData();
+	m_ok = OnlineClient::BrowseIedModel(m_ip.toUtf8().constData(), m_port, preferred, detected, lds, err);
 	if (m_ok)
 	{
 		std::string iedName = preferred.empty() ? detected : preferred;
-		BrowseModel::BuildModelFromBrowse(iedName, m_ip.toLocal8Bit().constData(), m_port, lds, m_model);
+		BrowseModel::BuildModelFromBrowse(iedName, m_ip.toUtf8().constData(), m_port, lds, m_model);
 	}
 	else
 	{
-		m_error = QString::fromLocal8Bit(err.c_str());
+		m_error = QString::fromUtf8(err.c_str());
 	}
 }

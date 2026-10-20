@@ -1,0 +1,31 @@
+<RCC>
+  <qresource prefix="/icons">
+    <file alias="app.png">app_256.png</file>
+    <file alias="chevron-down.svg">icons/chevron-down.svg</file>
+    <file alias="new.svg">icons/new.svg</file>
+    <file alias="open.svg">icons/open.svg</file>
+    <file alias="save.svg">icons/save.svg</file>
+    <file alias="export.svg">icons/export.svg</file>
+    <file alias="preview.svg">icons/preview.svg</file>
+    <file alias="templates.svg">icons/templates.svg</file>
+    <file alias="comm.svg">icons/comm.svg</file>
+    <file alias="dataset.svg">icons/dataset.svg</file>
+    <file alias="control.svg">icons/control.svg</file>
+    <file alias="gse.svg">icons/gse.svg</file>
+    <file alias="smv.svg">icons/smv.svg</file>
+    <file alias="reference.svg">icons/reference.svg</file>
+    <file alias="add.svg">icons/add.svg</file>
+    <file alias="delete.svg">icons/delete.svg</file>
+    <file alias="edit.svg">icons/edit.svg</file>
+    <file alias="ied.svg">icons/ied.svg</file>
+    <file alias="server.svg">icons/server.svg</file>
+    <file alias="ld.svg">icons/ld.svg</file>
+    <file alias="ln.svg">icons/ln.svg</file>
+    <file alias="do.svg">icons/do.svg</file>
+    <file alias="dai.svg">icons/dai.svg</file>
+    <file alias="history.svg">icons/history.svg</file>
+  </qresource>
+  <qresource prefix="/i18n">
+    <file alias="ieddesigner_zh_CN.qm">../../translate/ieddesigner_zh_CN.qm</file>
+  </qresource>
+</RCC>

@@ -3,4 +3,17 @@
 build*
 bin*
 
+Makefile
 Makefile.*
+
+export/
+
+*.rt.cid
+
+.workbuddy
+ieddesigner.pro.user
+docs
+
+
+object_script.ieddesigner.Debug
+object_script.ieddesigner.Release
