@@ -81,7 +81,8 @@
 特别说明一行常见的日志：
 
 ```
-Loader check passed · DI=5 AI=8 DO=5 AO=8 SG=2
+Loader check: DI=4 AI=8 DO=5 AO=0 SG=3 ied=DEMOIED
+Loader check passed
 ```
 
 这是程序用内置的 IEC 61850 装载器对生成的文件做的"模拟读入"自检：DI/AI/DO/AO/SG 分别是点表中**遥信、遥测、可控 DO、模拟量输出、定值组**的引用数量。只要这行显示 passed / OK，说明生成的文件能被标准协议栈读起来。
@@ -402,6 +403,18 @@ IED（装置）
 > 💡 **ICD 与 CID 的区别一句话**：ICD 是"我是谁、我有什么"（厂家提供），CID 是"我在这个站里怎么连、怎么送"（集成后下装的）。本程序两者都能生成，区别只在于是否包含通信段。
 
 保存完成后看一眼日志里的 Loader check 是否通过，通过即说明文件能被标准协议栈解析。
+
+**CSV 点表的分类规则**（第一列"组"的取值）：
+
+| 组别 | 判定规则 |
+|---|---|
+| DI（遥信） | CDC 为 `SPS` / `DPS`，取 `stVal`（FC=ST） |
+| AI（遥测） | CDC 为 `MV`，取 `mag.f` / `mag.i`（FC=MX） |
+| DO（遥控） | CDC 为 `SPC` / `DPC`，取 `stVal`（读引用 `LD/LN$ST$DO$stVal`，控制引用 `LD/LN.DO`） |
+| AO（遥调） | CDC 为 `APC`，取 `setMag.f` |
+| SG（定值） | FC 为 `SG` / `SE` / `SP` 的定值点（`SPC` / `DPC` / `APC` 控制类 CDC 不重复计入） |
+
+> 说明：**LPHD（物理装置信息 LN）不计入点表**。LPHD 下的 `Proxy`（本 LN 是否为代理）、`Sim`（仿真使能）等属于装置自描述标志位，不是过程信号；`PhyNam` / `PhyHealth` 为 DPL / INS，本来也不符合上面的 CDC 规则。LN0 的 `Mod` / `Beh` / `Health` / `NamPlt` 同理不入表。所以像 `simpleIO` 这类装置，4 路开入只出 4 条 DI，不会多出 `LPHD1.Proxy` 那一条。
 
 ### 10.1 XSD 校验（结构合规检查）
 
